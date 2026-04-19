@@ -1,0 +1,21 @@
+Rider Name,Platform ID,Emirates ID,Platform,Plate Number,Chassis Number,Model,Assignment Date,Status
+Zaid Khan,T-001,784-1990-1234567-1,Talabat,P-001,CH-1001,Honda 150,2024-01-01,Active
+Ali Ahmed,T-002,784-1992-2345678-2,Talabat,P-002,CH-1002,Honda 125,2024-01-05,Active
+Omar Hassan,T-003,784-1995-3456789-3,Talabat,P-003,CH-1003,Yamaha 100,2024-01-10,Active
+Bilal Malik,T-004,784-1988-4567890-4,Talabat,P-004,CH-1004,Honda 150,2024-01-15,Active
+Hamza Sheikh,T-005,784-1991-5678901-5,Talabat,P-005,CH-1005,Honda 125,2024-01-20,Active
+Mustafa Jan,T-006,784-1993-6789012-6,Talabat,P-006,CH-1006,Yamaha 100,2024-01-25,Active
+Yasin Butt,T-007,784-1985-7890123-7,Talabat,P-007,CH-1007,Honda 150,2024-02-01,Active
+Irfan Shah,T-008,784-1990-8901234-8,Talabat,P-008,CH-1008,Honda 125,2024-02-05,Active
+Salman Tariq,T-009,784-1994-9012345-9,Talabat,P-009,CH-1009,Yamaha 100,2024-02-10,Active
+Usman Gondal,T-010,784-1987-0123456-0,Talabat,P-010,CH-1010,Honda 150,2024-02-15,Active
+Zeeshan Ali,T-011,784-1991-1112223-1,Talabat,P-011,CH-1011,Honda 125,2024-02-20,Active
+Farhan Akram,T-012,784-1993-2223334-2,Talabat,P-012,CH-1012,Yamaha 100,2024-02-25,Active
+Rizwan Nazir,T-013,784-1995-3334445-3,Talabat,P-013,CH-1013,Honda 150,2024-03-01,Active
+Sohail Anwar,T-014,784-1989-4445556-4,Talabat,P-014,CH-1014,Honda 125,2024-03-05,Active
+Naveed Iqbal,T-015,784-1992-5556667-5,Talabat,P-015,CH-1015,Yamaha 100,2024-03-10,Active
+Kashif Mehmood,T-016,784-1994-6667778-6,Talabat,P-016,CH-1016,Honda 150,2024-03-15,Active
+Abid Hussain,T-017,784-1986-7778889-7,Talabat,P-017,CH-1017,Honda 125,2024-03-20,Active
+Sajid Parvez,T-018,784-1990-8889990-8,Talabat,P-018,CH-1018,Yamaha 100,2024-03-25,Active
+Nasir Mahmood,T-019,784-1993-9990001-9,Talabat,P-019,CH-1019,Honda 150,2024-03-30,Active
+Waqas Arshad,T-020,784-1996-0001112-0,Talabat,P-020,CH-1020,Honda 125,2024-03-31,Active

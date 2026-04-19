@@ -1,0 +1,399 @@
+
+
+===== PAGE 1 =====
+
+VENDOR & SUPPLIER ACCOUNTING WORKFLOW  |  Confidential Client Draft 
+ERP Internal Documentation  •  Page 1 
+ 
+VENDOR & SUPPLIER 
+ACCOUNTING WORKFLOW 
+Client Confirmation Draft  •  ERP Implementation 
+ 
+PURPOSE 
+Define ERP accounting rules 
+for vendors and suppliers 
+SCOPE 
+VAT handling, journal entries, 
+payments & audit trails 
+STATUS 
+Draft — Pending Client Review 
+& Confirmation 
+ 
+1. Purpose 
+ 
+This document explains how Vendor and Supplier accounting should work within the ERP 
+system. It covers all aspects of financial transaction management to ensure full transparency, 
+accuracy, and traceability without blocking business operations. 
+ 
+What This Document Covers 
+• Profile creation flow for Vendors and Suppliers 
+• VAT handling rules per party type 
+• Journal posting logic and ledger impact 
+• Payment scenarios: cash, credit, and partial payments 
+• Adjustments, corrections, and audit trail behavior 
+ 
+2. Core Business Definitions 
+ 
+ 
+🏭  Vendor  (VAT Applicable) 🏭  Supplier  (Non-VAT Flow) 
+• Oil purchase • Consultancy fee 
+
+===== PAGE 2 =====
+
+VENDOR & SUPPLIER ACCOUNTING WORKFLOW  |  Confidential Client Draft 
+ERP Internal Documentation  •  Page 2 
+• Equipment purchase • Cleaning service 
+• Office supplies • Non-taxable service payments 
+• VAT-applicable transactions  
+ 
+⚠  Key Rule 
+• VAT is allowed ONLY when party type = Vendor 
+• VAT is NEVER applied when party type = Supplier 
+ 
+3. Profile Model 
+ 
+A minimal, rider-style profile model is used. Only essential fields are captured at the profile level. 
+ 
+3.1  Vendor Profile Fields 
+Field Default Notes 
+id, vendor_code Auto-generated Unique identifier 
+name, phone, email Required Basic contact details 
+address Optional Physical/billing address 
+vat_applicable true Enabled by default for vendors 
+vat_no Optional Required if VAT return filing needed 
+status active active / inactive 
+created_at Auto Timestamp on creation 
+ 
+3.2  Party ID Linking 
+Every journal and ledger entry includes party_type + party_id to link back to the exact profile for 
+statements, balances, and audits. 
+ 
+party_type party_id references 
+vendor vendors.id — the vendor profile 
+supplier suppliers.id — the supplier profile 
+rider riders.id — the rider profile 
+
+===== PAGE 3 =====
+
+VENDOR & SUPPLIER ACCOUNTING WORKFLOW  |  Confidential Client Draft 
+ERP Internal Documentation  •  Page 3 
+ 
+4. UX Flow — Journal Screen 
+ 
+Vendors and Suppliers can be created inline during journal posting — no need to navigate away 
+from the journal form. 
+ 
+Inline Profile Selection & Creation — Step by Step 
+• 1. User selects party_type (Vendor or Supplier) 
+• 2. User selects existing profile from searchable dropdown 
+• 3. If profile does not exist → click 'Create New Vendor' or 'Create New Supplier' 
+• 4. Mini-form opens on the same screen (modal flow) 
+• 5. On save → profile inserted into master table 
+• 6. Dropdown refreshes and auto-selects newly created profile 
+• 7. User completes and posts the journal entry 
+ 
+Validation Rules 
+• Party type chosen → profile must be selected before posting 
+• Vendor selected + VAT enabled → VAT calculation must be validated 
+• Supplier flow → VAT lines are blocked entirely 
+• Duplicate name → warning shown (not a hard block unless policy requires uniqueness) 
+• Unbalanced journal → always hard-blocked 
+ 
+5. Accounting Architecture 
+ 
+Data flows through four distinct layers, keeping profile data clean and financial postings fully 
+traceable. 
+ 
+Layer 1 
+Master Data 
+Layer 2 
+Transactions 
+Layer 3 
+Ledger 
+Layer 4 
+
+===== PAGE 4 =====
+
+VENDOR & SUPPLIER ACCOUNTING WORKFLOW  |  Confidential Client Draft 
+ERP Internal Documentation  •  Page 4 
+vendors 
+suppliers tables 
+journal_entries 
+journal_lines 
+ledger_entries from 
+posted journals 
+Reference 
+Linking 
+party_type + party_id 
+on every row 
+ 
+6. Journal vs. Ledger 
+ 
+ 
+🏭  Journal 🏭  Ledger 
+• The accounting instruction set for a 
+transaction 
+• The posted financial history generated from 
+journals 
+• Defines: debit expense, debit VAT input, 
+credit payable 
+• Used for: balances, statements, aging, 
+audit, reporting 
+• Must always balance: total debit = total 
+credit 
+• Old entries are never rewritten — 
+corrections use new entries 
+• Represents what was posted • Represents cumulative financial truth 
+ 
+7. Vendor Purchase with VAT 
+ 
+ 
+Scenario Details 
+• Party type: Vendor 
+• Base amount: 1,000 AED 
+• VAT rate: 5%  →  VAT amount: 50 AED 
+• Total payable: 1,050 AED 
+ 
+Journal Entry at Purchase Posting 
+# Entry Type Account Amount (AED) 
+1 Debit Expense Account 1,000.00 
+2 Debit VAT Input Account 50.00 
+
+===== PAGE 5 =====
+
+VENDOR & SUPPLIER ACCOUNTING WORKFLOW  |  Confidential Client Draft 
+ERP Internal Documentation  •  Page 5 
+3 Credit Vendor Payable 1,050.00 
+✓ CHECK Total Debit = Total Credit ✓ Balanced 
+ 
+Ledger Impact 
+• Expense account increases by 1,000 AED 
+• Recoverable VAT Input increases by 50 AED 
+• Liability to vendor increases by 1,050 AED 
+ 
+8. Supplier Purchase (No VAT) 
+ 
+ 
+Scenario Details 
+• Party type: Supplier 
+• Amount: 2,000 AED 
+• VAT: Not applicable (Supplier rule) 
+ 
+Journal Entry 
+# Entry Type Account Amount (AED) 
+1 Debit Consultancy Expense 2,000.00 
+2 Credit Supplier Payable 2,000.00 
+✓ CHECK Total Debit = Total Credit ✓ Balanced 
+ 
+Ledger Impact 
+• Expense account increases by 2,000 AED 
+• Liability to supplier increases by 2,000 AED 
+ 
+9. Payment Flow — Cash vs. Credit 
+ 
+
+===== PAGE 6 =====
+
+VENDOR & SUPPLIER ACCOUNTING WORKFLOW  |  Confidential Client Draft 
+ERP Internal Documentation  •  Page 6 
+ 
+🏭  Credit Purchase 🏭  Cash Payment 
+• Cash does not move at purchase time • Payable immediately reduced on payment 
+• Payable liability is created • Debit Vendor/Supplier Payable 
+• Amount remains outstanding • Credit Cash / Bank 
+• Payment transaction posts separately • Net result: payable clears to zero 
+ 
+Payment Journal — Full Settlement (Vendor 1,050 AED) 
+# Entry Type Account Amount (AED) 
+1 Debit Vendor Payable 1,050.00 
+2 Credit Cash / Bank 1,050.00 
+✓ CHECK Payable cleared to zero ✓ Settled 
+ 
+10. Partial Payments 
+ 
+Every payment creates a new journal and ledger entry. Previous payment rows are never 
+overwritten. 
+ 
+Scenario: Supplier Payable = 2,000 AED 
+• First payment posted: 800 AED 
+• Remaining outstanding: 1,200 AED 
+• ERP shows: paid amount, remaining balance, due status 
+ 
+Payment 1 of 2 — 800 AED 
+# Entry Type Account Amount (AED) 
+1 Debit Supplier Payable 800.00 
+2 Credit Cash / Bank 800.00 
+→ BALANCE Remaining outstanding 1,200.00 
+ 
+Payment 2 of 2 — 1,200 AED 
+
+===== PAGE 7 =====
+
+VENDOR & SUPPLIER ACCOUNTING WORKFLOW  |  Confidential Client Draft 
+ERP Internal Documentation  •  Page 7 
+# Entry Type Account Amount (AED) 
+1 Debit Supplier Payable 1,200.00 
+2 Credit Cash / Bank 1,200.00 
+✓ SETTLED Remaining outstanding 0.00 
+ 
+11. Adjustments, Corrections & Reversals 
+ 
+Core Rule 
+• Never silently edit posted financial history — all corrections must create new visible entries 
+ 
+Correction Patterns 
+Option A — Adjustment Entry Option B — Reversal + Repost 
+• Post only the difference amount • Fully reverse original entry 
+• Minimal impact to existing entries • Repost the correct entry 
+• Used for small over/under posts • Used when entire transaction is wrong 
+ 
+Example: VAT Correction (posted 60, should be 50) 
+# Entry Type Account Amount (AED) 
+1 Credit VAT Input Account 10.00 
+2 Debit Correction Account 10.00 
+→ NOTE Original entry remains visible Audit safe 
+ 
+12. Audit Trail & Transparency 
+ 
+Every transaction must store the following fields for full accountability: 
+ 
+Field Purpose 
+
+===== PAGE 8 =====
+
+VENDOR & SUPPLIER ACCOUNTING WORKFLOW  |  Confidential Client Draft 
+ERP Internal Documentation  •  Page 8 
+transaction_number Unique reference for every posting 
+posting_date When the transaction was recorded 
+party_type + party_id Links to exact vendor/supplier/rider profile 
+source_document_ref Invoice/bill/payment number 
+created_by / posted_by User accountability trail 
+approval_status Pending / Approved / Rejected 
+timestamp Exact date-time of action 
+narration / remarks Business context of the posting 
+reversal_of_entry_id Links correction to original (if applicable) 
+ 
+13. Data Integrity & Safety Rules 
+ 
+ 
+🏭  Hard Blocks (Always Enforced) ⚠  Soft Warnings (Show, Don't Block) 
+• Journal must balance (debit = credit) • Negative net amount detected 
+• Vendor VAT logic only in Vendor category • Missing VAT number for VAT vendor 
+• Supplier flow produces no VAT lines • Unusually high VAT percentage 
+• Posted entries protected from silent edits • Missing counterparty profile 
+ 
+14. Posting Templates 
+ 
+ 
+14.1  Vendor Purchase (with VAT) 
+ 
+# Entry Type Account Amount (AED) 
+Dr Debit Expense Account Base Amount 
+Dr Debit VAT Input Account VAT Amount 
+Cr Credit Vendor Payable Base + VAT 
+
+===== PAGE 9 =====
+
+VENDOR & SUPPLIER ACCOUNTING WORKFLOW  |  Confidential Client Draft 
+ERP Internal Documentation  •  Page 9 
+ 
+14.2  Vendor Payment 
+ 
+# Entry Type Account Amount (AED) 
+Dr Debit Vendor Payable Paid Amount 
+Cr Credit Cash / Bank Paid Amount 
+ 
+14.3  Supplier Purchase (No VAT) 
+ 
+# Entry Type Account Amount (AED) 
+Dr Debit Expense Account Amount 
+Cr Credit Supplier Payable Amount 
+ 
+14.4  Supplier Payment 
+ 
+# Entry Type Account Amount (AED) 
+Dr Debit Supplier Payable Paid Amount 
+Cr Credit Cash / Bank Paid Amount 
+ 
+15. End-to-End Practical Examples 
+ 
+ 
+Example A — Vendor Oil Purchase (Cash Payment Later) 
+Step 1: Purchase Entry 
+# Entry Type Account Amount (AED) 
+Dr Debit Oil Expense 1,000.00 
+Dr Debit VAT Input 50.00 
+Cr Credit Vendor Payable 1,050.00 
+ 
+
+===== PAGE 10 =====
+
+VENDOR & SUPPLIER ACCOUNTING WORKFLOW  |  Confidential Client Draft 
+ERP Internal Documentation  •  Page 10 
+Step 2: Payment Entry 
+# Entry Type Account Amount (AED) 
+Dr Debit Vendor Payable 1,050.00 
+Cr Credit Cash 1,050.00 
+ 
+Net Result 
+• Expense recognized correctly 
+• VAT tracked correctly 
+• Payable fully settled 
+• Cash reduced by 1,050 AED 
+ 
+Example B — Supplier Consultancy (Partial Payments) 
+Step 1: Purchase Entry 
+# Entry Type Account Amount (AED) 
+Dr Debit Consultancy Expense 2,000.00 
+Cr Credit Supplier Payable 2,000.00 
+ 
+Step 2: Payment 1 — Partial 
+# Entry Type Account Amount (AED) 
+Dr Debit Supplier Payable 800.00 
+Cr Credit Cash 800.00 
+→ STATUS Remaining payable 1,200.00 
+ 
+Step 3: Payment 2 — Final Settlement 
+# Entry Type Account Amount (AED) 
+Dr Debit Supplier Payable 1,200.00 
+Cr Credit Cash 1,200.00 
+✓ STATUS Remaining payable 0.00 — Fully 
+Settled 
+ 
+
+===== PAGE 11 =====
+
+VENDOR & SUPPLIER ACCOUNTING WORKFLOW  |  Confidential Client Draft 
+ERP Internal Documentation  •  Page 11 
+16. Implementation Scope — Phased Plan 
+ 
+ 
+Phase 1 — MVP 
+• Basic vendor/supplier profile tables 
+• Inline create/select in journal form 
+• Vendor VAT logic (5%) 
+• Supplier non-VAT logic 
+• Posting to journal + ledger 
+• Partial payment support 
+Phase 2 — 
+Enhanced 
+• Advanced validations 
+• Aging and payable reports 
+• Approval workflow enhancements 
+• Reversal workflows 
+• Correction helpers 
+ 
+17. Final Confirmation Summary 
+ 
+ 
+01 Vendor and Supplier are handled as separate entity types with separate profile 
+tables 
+02 VAT (5%) applies only to the Vendor flow — never applied to Supplier transactions 
+03 Every posting generates balanced journal entries (total debit = total credit) 
+04 Ledger reflects all posted transactions providing complete financial transparency 
+05 Payments (full or partial) correctly reduce the outstanding payable balance 
+06 All adjustments and corrections are audit-safe — no hidden history edits allowed 
+07 Users can create a new Vendor or Supplier inline during journal posting 
+08 Rider transactions use the same party_type + party_id design (party_type = rider) 
+ 
+— End of Document — 

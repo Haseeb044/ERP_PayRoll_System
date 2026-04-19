@@ -1,0 +1,1817 @@
+System Requirements Specification (SRS) 
+Rider Payroll & Accounting ERP 
+1. SYSTEM OVERVIEW 
+This ERP manages riders, payroll, fines, bikes, expenses, journals, and cashflow for rider 
+outsourcing companies. Built on strict double-entry accounting principles (Journals) 
+ 
+ 
+Users:  
+1. PRO (limited access) 
+2. Accountant (Full/admin level access, Accountant is the admin) 
+STEP 1 — CORE ACCOUNTING PHILOSOPHY (NON-NEGOTIABLE RULES) 
+This step defines rules that everything else depends on. 
+If these are wrong, the whole system collapses. 
+ 
+1.1 Journal Is the Absolute Root 
+Rule 1.1.1 — Journal Mandatory 
+ 
+NO transaction can exist without a Journal 
+o Expense 
+o Salary 
+o Loan 
+o Fine 
+o Drawer balance correction 
+o Capital injection 
+o Profit withdrawal 
+ 
+Even manual balance corrections MUST create a journal. 
+✅ Confirmed: YES 
+ 
+Rule 1.1.2 — Journal Immutability 
+ 
+Once a Journal is POSTED: 
+o ❌ Cannot be edited 
+o ❌ Cannot be deleted 
+
+o ✅ Can only be reversed 
+ 
+Reversal creates: 
+o A new journal 
+o With equal and opposite ledger entries 
+o Linked to original journal via reversal_of_journal_id 
+✅ Confirmed: YES (only reversed) 
+ 
+Rule 1.1.3 — Double-Entry Enforcement 
+For every journal: 
+ 
+Sum of Debit = Sum of Credit 
+ 
+System hard-blocks save if imbalance exists 
+⚠️ No override, even for admin. 
+ 
+1.2 Ledger vs Expense (Final Terminology Lock) 
+Ledger (What it IS) 
+ 
+Ledger is NOT a module for creating data 
+ 
+Ledger is a read-only transactional history 
+ 
+It answers: 
+o Who owes how much? 
+o Who was paid how much? 
+o When did money move? 
+Ledger entries are generated automatically from journals. 
+ 
+Expense Module (What it IS) 
+ 
+Expense module is a journal creation interface 
+ 
+Accountant creates: 
+o Expense journals 
+o Loan journals 
+o Salary journals 
+o Fine journals 
+o Manual adjustment journals 
+ 
+Expense Categories: 
+
+o Configurable 
+o Drive default behavior, not accounting truth 
+✅ This matches your corrected understanding. 
+ 
+1.3 Receivable / Payable — Mandatory Decision Point 
+Rule 1.3.1 — Mandatory Flag 
+While creating ANY journal, system MUST require: 
+ 
+Is this: 
+o Receivable? 
+o Payable? 
+o Pure expense? 
+✅ Confirmed: Mandatory 
+ 
+Rule 1.3.2 — What Receivable Means 
+If marked Receivable: 
+ 
+Journal MUST include: 
+o Entity Type (Rider / Vendor / Supplier) 
+o Entity ID 
+o Amount receivable 
+ 
+This amount: 
+o Appears in that entity’s ledger 
+o Appears in rider’s payslip (if rider) 
+Example: 
+Visa cost = 2,000 
+Charged to rider = 5,000 
+→ Receivable = 5,000 (NOT 2,000) 
+ 
+Rule 1.3.3 — What Payable Means 
+If marked Payable: 
+
+ 
+Creates liability in ledger 
+ 
+Must be cleared later via payment journal 
+ 
+1.4 Drawers — Absolute Money Containers 
+Rule 1.4.1 — Drawer Is a Ledger Entity 
+ 
+Drawer is NOT a balance field 
+ 
+Drawer balance = sum of ledger entries affecting it 
+Drawers: 
+ 
+Bank 
+ 
+Cash 
+ 
+Noqodi (Govt card) 
+ 
+Others later 
+ 
+Rule 1.4.2 — Manual Drawer Adjustments 
+Allowed via: 
+ 
+Journal Type: Manual Adjustment 
+ 
+Mandatory reason text 
+ 
+Mandatory source drawer 
+Use cases: 
+ 
+Capital injection 
+ 
+Profit withdrawal 
+ 
+Bank mismatch correction 
+✅ Confirmed: Yes 
+ 
+1.5 Approval Flow (PRO vs Accountant) 
+Rule 1.5.1 — PRO Journals 
+Rule 1.5.1 — Actor-Based Transaction Separation (UPDATED) 
+This rule is in addition to approval flow, not instead of it. 
+
+1.5.1.a — Actor Attribution (Mandatory) 
+Every journal MUST store: 
+ 
+created_by_user_id 
+ 
+created_by_role (PRO / Accountant / System) 
+ 
+approved_by_user_id (nullable) 
+ 
+approved_at 
+This is immutable metadata. 
+ 
+1.5.1.b — Separate Histories (Reporting Rule) 
+System MUST allow owner/admin to: 
+ 
+View PRO-created journals only 
+ 
+View Accountant-created journals only 
+ 
+Compare: 
+o Total amount 
+o Category-wise spending 
+o Receivable vs pure expense 
+ 
+Time-range filterable 
+⚠️ Even if accountant approves a PRO journal: 
+ 
+It is still counted under PRO’s initiated expenses 
+ 
+Rule 1.5.2 — Accountant Approval 
+ 
+Accountant can: 
+o Approve 
+o Reject 
+o Modify receivable/payable amounts 
+ 
+On approval: 
+o Journal becomes POSTED 
+o Ledger entries generated 
+o Drawer affected 
+ 
+
+Rule 1.5.3 — Templates (Critical) 
+ 
+Accountant must be able to: 
+o Save Journal Templates 
+o Auto-fill: 
+ 
+Accounts 
+ 
+Drawer 
+ 
+Category 
+ 
+VAT 
+ 
+Only variable input: 
+o Amount 
+o Entity (Rider) 
+o Receivable override 
+✅ This is essential for usability — correctly identified. 
+ 
+1.6 Hard System Blocks (No Soft Warnings) 
+The system MUST BLOCK (not warn): 
+ 
+❌ Posting journal without receivable/payable decision 
+ 
+❌ Posting unbalanced journal 
+ 
+❌ Editing posted journal 
+ 
+❌ Payroll finalization with Rider ID mismatch 
+ 
+❌ Salary posting if rider alias unresolved 
+ 
+STEP 2 — RIDER IDENTITY, ALIASES & COMPANY SWITCHING (CRITICAL) 
+This is one of the most important parts of your system. 
+If this is wrong, payroll breaks silently. 
+ 
+2.1 Rider Identity — Core Principle 
+Rule 2.1.1 — Internal Rider ID (Primary Key) 
+ 
+System generates a permanent internal rider ID 
+ 
+This ID: 
+o NEVER changes 
+
+o Is NEVER visible externally 
+o Is used for: 
+ 
+Ledger 
+ 
+Payroll 
+ 
+Fines 
+ 
+Expenses 
+ 
+Historical records 
+Example: 
+internal_rider_id = RDR-UUID-123 
+ 
+Rule 2.1.2 — External IDs Are NOT Primary Keys 
+The following are NOT primary identifiers: 
+ 
+Talabat ID 
+ 
+Keeta ID 
+ 
+Rider Name 
+ 
+Bike Plate 
+ 
+Phone number 
+They are aliases only. 
+ 
+Rule 2.1.3 — Emirates ID (Long-Term Anchor) 
+ 
+Emirates ID is: 
+o Mandatory 
+o Unique 
+ 
+Used ONLY for: 
+o Rare audits 
+o Long-term record recovery 
+ 
+❌ Not used in daily searches 
+ 
+❌ Not used in payroll matching 
+This solves: 
+ 
+Name duplication 
+ 
+Rider ID changes 
+ 
+Multi-year audits 
+ 
+
+2.2 Rider Aliases (This Solves 90% of Confusion) 
+Rule 2.2.1 — Rider Alias Table 
+Each rider can have multiple aliases. 
+Each alias contains: 
+ 
+internal_rider_id 
+ 
+platform (Talabat / Keeta / Bykea / etc) 
+ 
+external_rider_id (the ID used in salary sheets) 
+ 
+valid_from_date 
+ 
+valid_to_date (nullable) 
+ 
+status (Active / Inactive) 
+ 
+Rule 2.2.2 — One Active Alias Per Platform 
+For a given rider + platform: 
+ 
+Only ONE alias can be active at a time 
+System MUST enforce this. 
+ 
+2.3 Company / Platform Switching Logic 
+Scenario 
+Rider A: 
+ 
+Jan–June → Talabat → ID = TLB123 
+ 
+July onwards → Keeta → ID = KTA456 
+ 
+Rule 2.3.1 — Who Can Change It 
+ 
+ONLY Accountant can: 
+o Add 
+o Activate 
+o Deactivate rider aliases 
+ 
+PRO: 
+o Can view 
+
+o Cannot edit 
+ 
+Rule 2.3.2 — How Change Happens 
+When rider changes company: 
+1. Accountant: 
+o Deactivates old alias (sets valid_to_date) 
+o Creates new alias with new platform + ID 
+2. Internal rider ID remains same 
+3. Ledger remains continuous 
+ 
+Rule 2.3.3 — Salary Sheet Matching (System Generated Journal) 
+When salary sheet is uploaded: 
+ 
+System matches: 
+o Platform 
+o External Rider ID 
+o Date range 
+ 
+Finds correct internal rider ID 
+ 
+Generates system journal 
+✅ You already approved system-generated journals. 
+ 
+2.4 HARD BLOCKS (No Mercy Here) 
+Rule 2.4.1 — Rider ID Mismatch 
+If salary sheet contains: 
+ 
+Rider ID not found 
+ 
+OR alias exists but date range mismatch 
+➡️ System: 
+ 
+❌ Blocks payroll finalization 
+ 
+🚩 Flags issue in Action Needed 
+ 
+❌ Does NOT create journal 
+
+You already confirmed this. Locked. 
+ 
+Rule 2.4.2 — Duplicate Alias 
+If accountant tries to: 
+ 
+Assign same external rider ID 
+ 
+To two internal riders 
+➡️ System BLOCKS save. 
+ 
+2.5 Historical Accuracy (Very Important) 
+Rule 2.5.1 — Past Payslips 
+When extracting salary of: 
+ 
+1 year ago 
+ 
+2 years ago 
+System: 
+ 
+Uses alias valid during that month 
+ 
+NOT current alias 
+This guarantees: 
+ 
+Audit correctness 
+ 
+Legal defensibility 
+ 
+2.6 Rider Status (Connected to Payroll) 
+Each rider has: 
+ 
+Active 
+ 
+Vacation 
+ 
+Retired 
+
+Effects: 
+ 
+Retired: 
+o No new salary journals allowed 
+o Ledger remains readable 
+ 
+Vacation: 
+o Salary allowed 
+o Marked separately 
+ 
+ 
+STEP 3 — PAYROLL ENGINE (END-TO-END) 
+Payroll is NOT just salary. 
+It is a system-generated accounting pipeline. 
+ 
+3.1 Core Payroll Philosophy 
+Rule 3.1.1 — Payroll Is System-Generated 
+ 
+Payroll journals are ALWAYS system-generated 
+ 
+Accountant cannot manually post salary journals 
+ 
+Manual input = configuration only 
+✅ Already approved. 
+ 
+Rule 3.1.2 — One Payslip Per Rider Per Month Per Platform 
+For a given: 
+ 
+Rider (internal ID) 
+ 
+Platform (Talabat / Keeta / etc) 
+ 
+Month 
+➡️ Exactly ONE final payslip can exist. 
+System MUST block duplicates. 
+ 
+
+3.2 Salary Sheet Ingestion (Parent Company) 
+Rule 3.2.1 — Salary Sheet Upload 
+Accountant uploads: 
+ 
+Platform-specific salary sheet 
+ 
+Month + Year mandatory 
+ 
+Platform mandatory 
+Sheet contains: 
+ 
+External Rider ID 
+ 
+Gross Salary 
+ 
+Parent deductions (if any) 
+ 
+Net paid by platform (optional) 
+ 
+Rule 3.2.2 — Alias Resolution (Hard Gate) 
+For EACH row: 
+System tries: 
+1. Match External Rider ID 
+2. Match Platform 
+3. Match Date within alias validity 
+If FAIL: 
+ 
+❌ Block payroll finalization 
+ 
+🚩 Flag “Rider Alias Mismatch” 
+ 
+Row stays unresolved 
+No bypass. 
+ 
+3.3 Pre-Payslip State (Staging Area) 
+Before finalization, system creates a Draft Payslip. 
+Draft Payslip contains: 
+ 
+Gross salary (from platform) 
+ 
+Platform deductions (read-only) 
+
+ 
+Company deductions (editable) 
+ 
+Outstanding balances snapshot 
+⚠️ No ledger entries yet. 
+ 
+3.4 Company Deductions (Your Real Logic) 
+Rule 3.4.1 — Deduction Sources 
+Company deductions can come from: 
+ 
+Visa receivable 
+ 
+Loans / advances 
+ 
+Fines 
+ 
+Toll (Salik) 
+ 
+SIM charges 
+ 
+Any future receivable category 
+All deductions are: 
+ 
+Backed by ledger receivables 
+ 
+Never invented manually 
+ 
+Rule 3.4.2 — Manual Deduction Control 
+Accountant: 
+ 
+Sees total outstanding per category 
+ 
+Inputs: 
+o How much to deduct THIS month 
+ 
+System shows: 
+o Remaining balance AFTER deduction (live) 
+This avoids tab switching — as you requested. 
+ 
+Rule 3.4.3 — Over-Deduction Block 
+System MUST block: 
+ 
+Deduction > outstanding receivable 
+
+ 
+Deduction > salary net available 
+No negative surprises. 
+ 
+3.5 Deduction Allocation Strategy 
+Rule 3.5.1 — Allocation Mode 
+System supports: 
+ 
+Uniform distribution 
+ 
+Priority-based distribution 
+BUT: 
+🧠 Decision: 
+ 
+Allocation is manual for now 
+ 
+Automation can be added later 
+System MUST: 
+ 
+Track category-wise reduction 
+ 
+3.6 Final Payslip Generation (Point of No Return) 
+Rule 3.6.1 — Finalization Lock 
+When accountant clicks Finalize Payslip: 
+ 
+System performs ALL validations 
+ 
+Generates salary journal 
+ 
+Generates deduction journals 
+ 
+Posts to ledger 
+ 
+Deducts from drawer 
+After this: 
+ 
+Payslip becomes READ-ONLY 
+ 
+
+Rule 3.6.2 — Journal Structure (Critical) 
+For EACH rider finalization: 
+Journal A — Salary Payable 
+ 
+Debit: Platform Receivable / Income 
+ 
+Credit: Rider Salary Payable 
+Journal B — Company Deductions 
+ 
+Debit: Rider Payable 
+ 
+Credit: Each receivable category 
+Journal C — Net Payment 
+ 
+Debit: Rider Payable 
+ 
+Credit: Bank Drawer 
+All linked via: 
+ 
+payroll_batch_id 
+ 
+rider_id 
+ 
+month 
+ 
+3.7 Drawer Impact 
+Rule 3.7.1 — Drawer Deduction Timing 
+ 
+Drawer is affected ONLY at: 
+o Net payment journal 
+ 
+Not at draft stage 
+ 
+Not at sheet upload 
+This keeps cash accurate. 
+ 
+3.8 Rider Status Rules 
+Active 
+ 
+Normal payroll 
+
+Vacation 
+ 
+Payroll allowed 
+ 
+Flagged in payslip 
+Retired 
+ 
+❌ Payroll blocked 
+ 
+❌ New deductions blocked 
+ 
+Ledger still visible 
+ 
+3.9 Payslip Content (What Rider Sees) 
+Payslip MUST show: 
+ 
+Platform name 
+ 
+Gross salary 
+ 
+Platform deductions 
+ 
+Company deductions (category-wise) 
+ 
+Opening outstanding 
+ 
+Deducted this month 
+ 
+Closing outstanding 
+ 
+Net paid 
+This prevents disputes. 
+ 
+3.10 HARD BLOCKS (NON-NEGOTIABLE) 
+System BLOCKS if: 
+ 
+Rider alias unresolved 
+ 
+Duplicate payslip exists 
+ 
+Outstanding mismatch 
+ 
+Drawer insufficient funds 
+ 
+Rider status = Retired 
+ 
+ 
+ 
+
+STEP 4 — FINES, BIKES & PLATE MAPPING 
+4.1 Core Principle (Lock This First) 
+Rule 4.1.1 — Fines Belong to RIDERS, Not Bikes 
+ 
+Fine is financially charged to the rider 
+ 
+Bike / plate is only a routing mechanism 
+ 
+Final liability always lands on: 
+o 
+internal_rider_id 
+✅ You explicitly confirmed this earlier. 
+ 
+4.2 Bike & Plate Identity 
+Rule 4.2.1 — Bike Is a First-Class Entity 
+Each bike has: 
+ 
+Internal bike ID (permanent) 
+ 
+Plate number (unique) 
+ 
+Status (Active / Maintenance / Sold) 
+ 
+Rule 4.2.2 — Plate Number Uniqueness 
+ 
+Plate number must be globally unique 
+ 
+System blocks duplicate plates 
+ 
+4.3 Bike ↔ Rider Assignment (Time-Based) 
+This is critical. 
+Rule 4.3.1 — Assignment Table 
+Bike assignments are stored with: 
+ 
+Bike ID 
+ 
+Rider internal ID 
+ 
+Assigned From (date + time) 
+ 
+Assigned To (date + time, nullable) 
+
+ 
+Rule 4.3.2 — No Overlapping Assignments 
+ 
+One bike → one rider at a time 
+ 
+System blocks overlapping ranges 
+ 
+Rule 4.3.3 — Who Can Assign 
+ 
+ONLY Accountant can: 
+o Assign 
+o Unassign 
+o Modify assignment dates 
+ 
+PRO: 
+o View only 
+Reason: financial liability. 
+ 
+4.4 Fine Ingestion 
+Rule 4.4.1 — Fine Entry Sources 
+Fines can enter system via: 
+ 
+Manual entry 
+ 
+Excel upload 
+ 
+API (future) 
+Mandatory fields: 
+ 
+Plate number 
+ 
+Fine amount 
+ 
+Fine date 
+ 
+Fine reference number 
+ 
+Rule 4.4.2 — Plate-Based Resolution 
+On fine creation: 
+1. System finds bike by plate 
+2. Finds rider assigned at fine date/time 
+
+3. Links fine to that rider 
+ 
+4.5 Unassigned / Ambiguous Fines 
+Rule 4.5.1 — No Assignment Found 
+If: 
+ 
+Plate exists 
+ 
+BUT no rider assigned at fine time 
+Then: 
+ 
+Fine status = UNASSIGNED 
+ 
+❌ No journal created 
+ 
+🚩 Appears in Action Needed 
+ 
+Rule 4.5.2 — Multiple Matches (Should Never Happen) 
+If overlapping assignments exist (data corruption): 
+ 
+System BLOCKS fine posting 
+ 
+Requires admin resolution 
+ 
+4.6 Fine Journal Creation 
+Rule 4.6.1 — Fine Is a Receivable 
+Once rider is resolved: 
+ 
+System generates journal: 
+o Debit: Rider Receivable 
+o Credit: Fine Expense / Toll Clearing Account 
+ 
+Category: Fine / Salik 
+ 
+Receivable = mandatory 
+ 
+
+Rule 4.6.2 — Drawer Impact Timing 
+ 
+Drawer is impacted ONLY when: 
+o Fine is paid externally (bank deduction) 
+o OR rider salary deduction occurs 
+This prevents double counting. 
+ 
+4.7 Toll (Salik) Special Rule 
+Rule 4.7.1 — Toll Logic 
+ 
+Toll is: 
+o Paid by platform 
+o Deducted from company account 
+ 
+Rider must reimburse company 
+Thus: 
+ 
+Always receivable from rider 
+ 
+Mandatory deduction path in payroll 
+This matches your clarification. 
+ 
+4.8 Fine Deductions in Payroll 
+Rule 4.8.1 — Fine Visibility 
+In payslip: 
+ 
+Fine opening balance 
+ 
+Fine deducted this month 
+ 
+Fine remaining 
+ 
+Rule 4.8.2 — Partial Deductions Allowed 
+ 
+Accountant manually decides amount 
+ 
+System enforces: 
+o No over-deduction 
+
+ 
+4.9 Fine Lifecycle 
+Fine statuses: 
+ 
+Pending (ingested) 
+ 
+Unassigned 
+ 
+Assigned 
+ 
+Partially recovered 
+ 
+Fully recovered 
+Status auto-updates from ledger activity. 
+ 
+4.10 HARD BLOCKS 
+System BLOCKS: 
+ 
+Payroll finalization if unassigned fines exist for that rider 
+ 
+Deleting bikes with financial history 
+ 
+Editing assignment dates if fines exist in that period 
+ 
+5. RIDER IDENTITY & ALIASES 
+Internal rider ID permanent. External IDs via aliases. Auto-close previous alias. Platform 
+overlap allowed. Emirates ID mandatory. 
+STEP 5 — DRAWER & CASHFLOW CONTROL 
+5.1 Core Drawer Philosophy 
+Rule 5.1.1 — Drawer Is Not Editable Balance 
+ 
+Drawer does not store balance as truth 
+ 
+Balance = sum of all posted ledger entries 
+ 
+current_balance is derived / cached only 
+No manual typing of balance. 
+ 
+
+5.2 Drawer Types 
+System MUST support multiple drawers: 
+Drawer Type 
+Examples 
+Bank 
+Emirates NBD, Mashreq 
+Cash 
+Office Cash 
+Govt Wallet 
+Noqodi 
+Virtual 
+Clearing / Suspense 
+Each drawer has: 
+ 
+ID 
+ 
+Name 
+ 
+Type 
+ 
+Currency 
+ 
+5.3 Money Movement Rules 
+Rule 5.3.1 — All Movement via Journal 
+IN or OUT: 
+ 
+Salary payment 
+ 
+Visa payment 
+ 
+Capital injection 
+ 
+Profit withdrawal 
+ 
+Adjustment 
+➡️ Journal required (already locked in Step 1) 
+ 
+Rule 5.3.2 — Drawer Direction Logic 
+ 
+Debit Drawer → Money IN 
+ 
+Credit Drawer → Money OUT 
+System MUST auto-label direction. 
+
+ 
+5.4 Manual Adjustments (Critical but Dangerous) 
+Rule 5.4.1 — Allowed but Controlled 
+Manual drawer adjustments allowed ONLY via: 
+ 
+Journal Type = Manual Adjustment 
+ 
+Mandatory: 
+o Reason 
+o Reference 
+o Approved by accountant 
+Use cases: 
+ 
+Capital injection 
+ 
+Profit extraction 
+ 
+Bank mismatch correction 
+ 
+Rule 5.4.2 — Adjustment Audit 
+Manual adjustments: 
+ 
+Flagged in reports 
+ 
+Counted separately 
+ 
+Cannot be hidden 
+Owner visibility guaranteed. 
+ 
+5.5 Drawer Segregation (Important) 
+Rule 5.5.1 — No Cross-Drawer Leakage 
+A journal MUST specify: 
+ 
+Source drawer 
+ 
+Destination entity 
+Example: 
+ 
+Visa paid via Noqodi: 
+
+o Source = Noqodi drawer 
+ 
+Salary paid via bank: 
+o Source = Bank drawer 
+System BLOCKS missing drawer. 
+ 
+5.6 Insufficient Funds Handling 
+Rule 5.6.1 — Hard Block 
+If drawer balance < required amount: 
+ 
+❌ Journal cannot be posted 
+ 
+❌ Payroll finalization blocked 
+ 
+🚩 Flag “Insufficient Funds” 
+No overdraft unless explicitly allowed later. 
+ 
+5.7 Clearing & Suspense Accounts 
+Rule 5.7.1 — Temporary Holding 
+Used when: 
+ 
+Platform salary expected but not received 
+ 
+Fine paid but rider unknown 
+ 
+Bank entry unclear 
+Rules: 
+ 
+Must be cleared via reversal or settlement journal 
+ 
+Cannot remain uncleared beyond configurable days 
+ 
+5.8 Cashflow Reporting 
+System MUST show: 
+ 
+Opening balance 
+ 
+Inflows 
+ 
+Outflows 
+
+ 
+Closing balance 
+ 
+Per drawer 
+ 
+Per date range 
+ 
+5.9 HARD BLOCKS 
+System BLOCKS: 
+ 
+Posting journal without drawer 
+ 
+Editing drawer type after use 
+ 
+Deleting drawers with history 
+ 
+Posting if currency mismatch 
+ 
+ 
+STEP 6 — ACTION NEEDED / BLOCKING ENGINE 
+6.1 Core Philosophy 
+Rule 6.1.1 — No Silent Failures 
+ 
+Any condition that: 
+o Prevents correct accounting 
+o Creates financial ambiguity 
+o Risks cash loss 
+o Approving PRO expenses by accountant 
+➡️ MUST surface as an Action Needed item 
+No background ignoring. No “we’ll fix later”. 
+ 
+6.2 Action Needed Object 
+Each Action Needed item has: 
+ 
+ID 
+ 
+Type 
+ 
+Severity (Blocker / Warning / Info) 
+ 
+Related Entity (Rider / Journal / Bike / Drawer) 
+
+ 
+Reference ID 
+ 
+Created At 
+ 
+Resolved At 
+ 
+Resolution Notes 
+ 
+Responsible Role (Accountant / PRO / System) 
+ 
+6.3 BLOCKERS (System Stops Everything) 
+These HARD BLOCK operations until resolved. 
+6.3.1 Payroll Blockers 
+ 
+Rider alias mismatch 
+ 
+Duplicate payslip attempt 
+ 
+Rider status = Retired 
+ 
+Unassigned fines for that rider 
+ 
+Insufficient drawer balance 
+ 
+Salary sheet rider ID not found 
+➡️ Payroll finalization DISABLED 
+ 
+6.3.2 Accounting Blockers 
+ 
+Journal imbalance 
+ 
+Missing receivable/payable flag 
+ 
+Journal without drawer 
+ 
+Currency mismatch 
+ 
+Attempt to edit posted journal 
+ 
+6.3.3 Fines & Bikes Blockers 
+ 
+Fine with no bike plate match 
+ 
+Bike assignment overlap 
+ 
+Fine date outside any assignment 
+ 
+Multiple riders for same plate/time 
+ 
+
+6.4 WARNINGS (Allowed but Highlighted) 
+Warnings DO NOT block actions but: 
+ 
+Must be acknowledged 
+ 
+Are logged 
+Examples: 
+ 
+Manual drawer adjustment 
+ 
+Large one-time deduction 
+ 
+Salary unusually low/high 
+ 
+Long uncleared clearing balance 
+ 
+6.5 INFORMATIONAL ALERTS 
+Pure visibility: 
+ 
+Rider nearing zero balance 
+ 
+Loan almost recovered 
+ 
+Bike unused for X days 
+ 
+High PRO expense volume 
+ 
+6.6 Resolution Flow 
+Rule 6.6.1 — Explicit Resolution Required 
+Action Needed item: 
+ 
+Cannot auto-disappear 
+ 
+Requires: 
+o User action 
+o Or system event 
+Resolution records: 
+ 
+Who resolved 
+ 
+When 
+ 
+How 
+ 
+
+Rule 6.6.2 — Auto-Resolution 
+Some items auto-resolve: 
+ 
+Rider alias fixed 
+ 
+Fine assigned 
+ 
+Drawer funded 
+But still logged. 
+ 
+6.7 Role-Based Visibility 
+Role 
+Can View Can Resolve 
+PRO 
+Own items Limited 
+Accountant 
+All 
+All 
+Owner/Admin All 
+All 
+ 
+6.8 UI Behavior (Important) 
+ 
+Global Action Needed counter 
+ 
+Red badge for blockers 
+ 
+Click → direct deep link to problem 
+ 
+Blocked buttons explain WHY 
+No guessing. 
+ 
+6.9 Escalation Rules 
+ 
+Blocker unresolved > X days: 
+o Escalates to Owner 
+ 
+Repeated same issue: 
+o Flagged as pattern 
+ 
+6.10 HARD BLOCKS 
+System BLOCKS: 
+
+ 
+Closing month with unresolved blockers 
+ 
+Payroll run with active blockers 
+ 
+Journal posting with unresolved system errors 
+ 
+ 
+ 
+ 
+STEP 7 — REPORTING & Accountant DASHBOARD 
+7.1 Core Philosophy 
+Rule 7.1.1 — Accountant Sees SYSTEM TRUTH, Not Filtered Truth 
+ 
+Reports pull data directly from ledger & journals 
+ 
+No dependency on: 
+o UI state 
+o User-entered balances 
+ 
+Every number must be: 
+o Traceable 
+o Drill-down capable 
+If a number cannot be drilled down → it doesn’t belong on dashboard. 
+ 
+7.2 Accountant Dashboard (Top Layer) 
+7.2.1 Financial Snapshot (At a Glance) 
+Accountant sees: 
+ 
+Total Cash (sum of all drawers) 
+ 
+Bank vs Cash vs Noqodi split 
+ 
+Total Receivables (riders + others) 
+ 
+Total Payables 
+ 
+Net Position 
+All values: 
+ 
+Real-time 
+ 
+Clickable → ledger breakdown 
+
+ 
+7.2.2 Monthly Performance Panel 
+For selected month: 
+ 
+Total salaries paid 
+ 
+Total deductions recovered 
+ 
+Net payroll outflow 
+ 
+Total fines recovered 
+ 
+Total visa / onboarding recovery 
+Used to quickly answer: 
+“Is this month healthy or leaking?” 
+ 
+7.3 Actor-Based Expense Reporting (Your Special Requirement) 
+Rule 7.3.1 — Expense by Initiator 
+Owner MUST be able to view: 
+ 
+Expenses created by PRO 
+ 
+Expenses created by Accountant 
+ 
+System-generated expenses (Payroll) 
+Breakdown: 
+ 
+By category 
+ 
+By time range 
+ 
+By drawer 
+This directly enforces Rule 1.5.1. 
+ 
+Rule 7.3.2 — Approval Funnel 
+Accountant can see: 
+ 
+PRO-created → Approved 
+ 
+PRO-created → Rejected 
+ 
+Pending approvals (aging) 
+
+Detects: 
+ 
+Laziness 
+ 
+Abuse 
+ 
+Bottlenecks 
+ 
+7.4 Rider-Level Reports 
+7.4.1 Rider Financial Summary 
+For any rider: 
+ 
+Total salary earned 
+ 
+Total deductions 
+ 
+Outstanding balance 
+ 
+Fine recovery status 
+ 
+Loan recovery status 
+Includes: 
+ 
+Timeline view 
+ 
+Category-wise totals 
+ 
+7.4.2 Historical Consistency 
+Reports MUST respect: 
+ 
+Rider aliases 
+ 
+Platform changes 
+ 
+Past IDs 
+Accountant can pull: 
+“Rider X full financial history — regardless of company changes” 
+ 
+7.5 Payroll Reports 
+7.5.1 Payroll Register 
+For a given month: 
+
+ 
+Rider 
+ 
+Platform 
+ 
+Gross salary 
+ 
+Company deductions 
+ 
+Net paid 
+ 
+Drawer used 
+Exportable (Excel / PDF). 
+ 
+7.5.2 Deduction Aging Report 
+Shows: 
+ 
+How long balances are outstanding 
+ 
+Rider-wise 
+ 
+Category-wise 
+Used to detect: 
+ 
+Non-recoverable riders 
+ 
+Policy flaws 
+ 
+7.6 Fine & Bike Reports 
+7.6.1 Fine Recovery Report 
+ 
+Total fines issued 
+ 
+Total recovered 
+ 
+Pending fines 
+ 
+Unassigned fines (RED FLAG) 
+ 
+7.6.2 Bike Utilization 
+Per bike: 
+ 
+Assigned days 
+ 
+Riders used 
+ 
+Fines generated 
+Helps detect: 
+
+ 
+Abuse 
+ 
+Poor asset usage 
+ 
+7.7 Drawer & Cashflow Reports 
+7.7.1 Drawer Statement 
+Per drawer: 
+ 
+Opening balance 
+ 
+All transactions 
+ 
+Closing balance 
+Like a bank statement — audit-grade. 
+ 
+7.7.2 Cashflow Summary 
+ 
+Inflows vs Outflows 
+ 
+Category-wise 
+ 
+Period-wise 
+ 
+7.8 Action Needed Summary (Accountant View) 
+Owner sees: 
+ 
+Total blockers 
+ 
+Blockers by category 
+ 
+Aging of unresolved items 
+ 
+Repeated patterns 
+This is early warning system. 
+ 
+7.9 Drill-Down & Traceability (MANDATORY) 
+Rule 7.9.1 — No Dead Numbers 
+Every number must allow: 
+
+ 
+Click → journals 
+ 
+Click → ledger entries 
+ 
+Click → entity 
+If not drillable → remove it. 
+ 
+7.10 Export & Audit 
+Reports MUST: 
+ 
+Export exactly what is shown 
+ 
+Preserve totals 
+ 
+Include: 
+o Filters used 
+o Date/time generated 
+o Generated by user 
+Audit-safe. 
+ 
+ 
+ 
+STEP 8 — SECURITY, ROLES & PERMISSIONS 
+8.1 Core Security Philosophy 
+Rule 8.1.1 — Least Privilege 
+ 
+Every user gets minimum access required 
+ 
+No shared accounts 
+ 
+No “temporary full access” 
+ 
+Rule 8.1.2 — All Actions Are Audited 
+Every critical action logs: 
+ 
+User ID 
+ 
+Role 
+ 
+Timestamp 
+
+ 
+Before & After state 
+ 
+IP / Device (optional but recommended) 
+Logs are: 
+ 
+Append-only 
+ 
+Not editable 
+ 
+Not deletable 
+ 
+8.2 System Roles (Hard Defined) 
+8.2.1 Accountant (Admin) 
+Capabilities: 
+ 
+Create / approve journals 
+ 
+Approve PRO expenses 
+ 
+Run payroll 
+ 
+Manage riders 
+ 
+Assign bikes 
+ 
+Resolve Action Needed 
+ 
+Manage drawers 
+This role is operational power. 
+ 
+8.2.2 PRO (Operations) 
+Capabilities: 
+ 
+Create riders (initial only) 
+ 
+Upload documents 
+ 
+Create expense drafts 
+ 
+View assigned riders 
+ 
+View own transaction history 
+Restrictions: 
+ 
+❌ Cannot approve 
+ 
+❌ Cannot post journals 
+ 
+❌ Cannot edit riders after creation 
+ 
+❌ Cannot see ledger totals 
+
+8.3 Permission Matrix (Critical) 
+Action 
+ 
+Accountant 
+PRO 
+Create Journal 
+ 
+✅ 
+Draft only 
+Approve Journal 
+ 
+✅ 
+❌ 
+Reverse Journal 
+ 
+✅ 
+❌ 
+Run Payroll 
+ 
+✅ 
+❌ 
+Create Rider 
+ 
+✅ 
+✅ (initial) 
+Edit Rider 
+ 
+✅ 
+❌ 
+Assign Bike 
+ 
+✅ 
+❌ 
+View Ledger 
+ 
+✅ 
+Limited 
+View Own Expenses 
+ 
+Yes 
+✅ 
+ 
+8.4 Data Visibility Rules 
+Rule 8.4.1 — PRO Visibility 
+PRO can see: 
+ 
+Only journals he created 
+ 
+Only riders he onboarded 
+ 
+No totals 
+ 
+No balances 
+This prevents financial leakage. 
+ 
+Rule 8.4.2 — Accountant Visibility 
+ 
+Full operational view 
+ 
+Cannot see owner-only audit reports (optional) 
+ 
+
+8.5 Critical Action Protection 
+Rule 8.5.1 — Dual Confirmation 
+For high-risk actions: 
+ 
+Manual drawer adjustment 
+ 
+Journal reversal 
+ 
+Payroll finalization 
+System requires: 
+ 
+Confirmation dialog 
+ 
+Reason text 
+ 
+Rule 8.5.2 — Time Locks 
+Optional: 
+ 
+Journals older than X days: 
+o Can be reversed 
+o But require owner note 
+ 
+8.6 Authentication 
+Rule 8.6.1 — Secure Login 
+ 
+Username + Password 
+ 
+Password policy: 
+o Min length 
+o Complexity 
+o Upper case, lower case, number and special character required.  
+ 
+8.7 Session & Access Control 
+ 
+Auto logout after inactivity 
+ 
+Device-based login tracking 
+ 
+Optional IP whitelisting for accountant 
+ 
+
+8.8 Audit Log Scope 
+Logged events include: 
+ 
+Login / logout 
+ 
+Journal creation / approval / reversal 
+ 
+Payroll run 
+ 
+Rider edits 
+ 
+Bike assignment 
+ 
+Drawer adjustment 
+ 
+Permission change 
+ 
+8.9 HARD BLOCKS 
+System BLOCKS: 
+ 
+Role escalation without owner 
+ 
+Deleting users with history 
+ 
+Disabling audit logs 
+ 
+Editing permissions inline 
+ 
+STEP 9 — END-TO-END SYSTEM WALKTHROUGH 
+SCENARIO OVERVIEW 
+ 
+Rider: Ali 
+ 
+Platform: Talabat → later Keeta 
+ 
+Bike: DXB-K-12345 
+ 
+Visa cost: 2,000 AED (charged 5,000) 
+ 
+Fine: 300 AED 
+ 
+Salary: January 2026 
+ 
+Drawer: Bank + Noqodi 
+ 
+9.1 Rider Onboarding (PRO → Accountant) 
+9.1.1 PRO Creates Rider (Draft State) 
+PRO: 
+
+ 
+Creates rider profile 
+ 
+Enters: 
+o Name 
+o Emirates ID 
+o Phone 
+ 
+Uploads documents 
+System: 
+ 
+Assigns internal_rider_id 
+ 
+Rider status = Active 
+ 
+PRO CANNOT edit later 
+ 
+9.1.2 Accountant Completes Rider Setup 
+Accountant: 
+ 
+Reviews rider 
+ 
+Adds: 
+o Platform alias: 
+ 
+Talabat 
+ 
+External ID: TLB-9981 
+ 
+Valid from: 1 Jan 2026 
+ 
+Assigns bike DXB-K-12345 
+System: 
+ 
+Closes any previous alias (auto) 
+ 
+Assignment timestamped 
+ 
+9.2 Visa Expense (PRO → Accountant → Ledger) 
+9.2.1 PRO Adds Visa Expense 
+ 
+Amount paid: 2,000 
+ 
+Drawer: Noqodi 
+ 
+Category: Visa 
+ 
+Rider selected 
+System: 
+ 
+Journal created (Unapproved) 
+
+ 
+No ledger impact 
+ 
+Action Needed: Approval pending 
+ 
+9.2.2 Accountant Approves + Marks Receivable 
+Accountant: 
+ 
+Approves journal 
+ 
+Sets: 
+o Receivable = 5,000 
+ 
+Uses journal template 
+System: 
+ 
+Journal posted 
+ 
+Ledger entries created: 
+o Noqodi credited 2,000 
+o Rider receivable debited 5,000 
+ 
+Drawer updated 
+ 
+9.3 Fine Occurs (Plate → Rider → Receivable) 
+9.3.1 Fine Entry 
+ 
+Plate: DXB-K-12345 
+ 
+Date: 15 Jan 
+ 
+Amount: 300 
+System: 
+ 
+Resolves bike → rider Ali 
+ 
+Fine assigned 
+ 
+Journal created: 
+o Rider receivable +300 
+If assignment missing: 
+ 
+Fine stays UNASSIGNED 
+ 
+Payroll blocked 
+ 
+
+9.4 Salary Sheet Upload (Talabat) 
+9.4.1 Accountant Uploads Sheet 
+Sheet row: 
+ 
+External ID: TLB-9981 
+ 
+Gross: 2,500 
+System: 
+ 
+Resolves alias 
+ 
+Draft payslip created 
+ 
+9.5 Payroll Deduction Phase 
+Draft shows: 
+ 
+Visa outstanding: 5,000 
+ 
+Fine outstanding: 300 
+Accountant: 
+ 
+Deducts: 
+o Visa: 1,000 
+o Fine: 300 
+System: 
+ 
+Shows live remaining balances 
+ 
+9.6 Payroll Finalization (Point of No Return) 
+Accountant clicks Finalize. 
+System checks: 
+ 
+No unassigned fines ✅ 
+ 
+Alias valid ✅ 
+ 
+Drawer sufficient ✅ 
+
+System generates: 
+1. Salary payable journal 
+2. Deduction journals 
+3. Net payment journal 
+Drawer: 
+ 
+Bank credited (outflow) 
+Payslip locked. 
+ 
+9.7 Platform Switch (Talabat → Keeta) 
+9.7.1 Alias Change 
+Accountant: 
+ 
+Closes Talabat alias (31 Jan) 
+ 
+Creates Keeta alias (1 Feb) 
+ 
+New external ID: KTA-4412 
+Internal rider ID unchanged. 
+ 
+9.8 Historical Payroll Integrity 
+Owner pulls: 
+“Ali salary Jan 2026” 
+System: 
+ 
+Uses Talabat alias 
+ 
+Shows correct history 
+Feb salary: 
+ 
+Uses Keeta alias 
+No conflict. 
+ 
+
+9.10 Failure Scenario (System Protects) 
+Unassigned Fine Exists 
+ 
+Payroll button disabled 
+ 
+Action Needed visible 
+ 
+Cannot bypass 
+ 
+FINAL VERDICT 
+✔ Accounting-correct 
+✔ Payroll-safe 
+✔ Rider-proof 
+✔ Audit-grade 
+✔ Scalable 
+✔ Developer-ready 
+ 
