@@ -1,4 +1,4 @@
-import 'dart:io';
+﻿import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -57,7 +57,7 @@ class _PayrollHistoryTileState extends State<PayrollHistoryTile> {
             border: Border.all(color: const Color(0xFFF1F5F9)),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.02),
+                color: Colors.black.withValues(alpha: 0.02),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
@@ -418,3 +418,4 @@ class _StatusBadge extends StatelessWidget {
     );
   }
 }
+

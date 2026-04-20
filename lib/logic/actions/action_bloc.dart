@@ -54,6 +54,14 @@ class ActionBloc extends Bloc<ActionEvent, ActionState> {
   StreamSubscription? _expenseSubscription;
   StreamSubscription? _authSubscription;
   RealtimeChannel? _actionItemsChannel;
+  Timer? _scanTimer;
+
+  // Realtime websocket can be noisy/unstable on some desktop setups.
+  // Keep it opt-in and rely on periodic refresh by default.
+  static const bool _enableActionRealtime = bool.fromEnvironment(
+    'ENABLE_ACTION_REALTIME',
+    defaultValue: false,
+  );
 
   String? _responsibleRole;
 
@@ -89,18 +97,24 @@ class ActionBloc extends Bloc<ActionEvent, ActionState> {
       add(ScanSystem());
     });
 
-    // Subscribe to action_items changes via realtime channel and trigger a full re-fetch
-    _actionItemsChannel = Supabase.instance.client
-        .channel('action_items_changes')
-        .onPostgresChanges(
-          event: PostgresChangeEvent.all,
-          schema: 'public',
-          table: 'action_items',
-          callback: (payload) {
-            add(ScanSystem());
-          },
-        )
-        .subscribe();
+    // Periodic fallback scan keeps action list current even when realtime is disabled.
+    _scanTimer = Timer.periodic(const Duration(seconds: 20), (_) {
+      add(ScanSystem());
+    });
+
+    if (_enableActionRealtime) {
+      _actionItemsChannel = Supabase.instance.client
+          .channel('action_items_changes')
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'action_items',
+            callback: (payload) {
+              add(ScanSystem());
+            },
+          )
+          .subscribe();
+    }
   }
 
   Future<void> _onScanSystem(
@@ -186,6 +200,7 @@ class ActionBloc extends Bloc<ActionEvent, ActionState> {
 
   @override
   Future<void> close() {
+    _scanTimer?.cancel();
     _finesSubscription?.cancel();
     _expenseSubscription?.cancel();
     _authSubscription?.cancel();

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -175,9 +175,9 @@ class _LedgerPageState extends State<LedgerPage>
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: AppTheme.primaryColor.withOpacity(0.1),
+                      color: AppTheme.primaryColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: AppTheme.primaryColor.withOpacity(0.3)),
+                      border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.3)),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -205,7 +205,7 @@ class _LedgerPageState extends State<LedgerPage>
             ],
             const SizedBox(height: 8),
             Text(
-              'Read-only ledger — auto-populated when journals are posted.',
+              'Read-only ledger â€” auto-populated when journals are posted.',
               style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey),
             ),
             const SizedBox(height: 24),
@@ -477,7 +477,7 @@ class _LedgerPageState extends State<LedgerPage>
     );
   }
 
-  // ── Ledger Entries Tab ──
+  // â”€â”€ Ledger Entries Tab â”€â”€
 
   Widget _buildEntriesTab(LedgerLoaded state) {
     final entries = _filteredItems;
@@ -772,10 +772,10 @@ class _LedgerPageState extends State<LedgerPage>
 
   String _friendlyAccountName(String accountId) {
     // Convert snake_case to Title Case words
-    // e.g. expense_receivable → Expense Receivable
-    // e.g. drawer_payment → Drawer Payment
-    // e.g. suspense_holding → Suspense Holding
-    // e.g. vat_payable → VAT Payable
+    // e.g. expense_receivable â†’ Expense Receivable
+    // e.g. drawer_payment â†’ Drawer Payment
+    // e.g. suspense_holding â†’ Suspense Holding
+    // e.g. vat_payable â†’ VAT Payable
     if (accountId.isEmpty) return accountId;
 
     // Handle special cases
@@ -809,14 +809,14 @@ class _LedgerPageState extends State<LedgerPage>
   }
 
 
-  // ── Trial Balance Tab ──
+  // â”€â”€ Trial Balance Tab â”€â”€
 
   Widget _buildTrialBalanceTab() {
     final entries = _filteredItems;
     if (entries.isEmpty) {
       return Center(
         child: Text(
-          'No posted journals yet — trial balance will appear here.',
+          'No posted journals yet â€” trial balance will appear here.',
           style: GoogleFonts.poppins(color: Colors.grey, fontSize: 16),
         ),
       );
@@ -971,7 +971,7 @@ class _LedgerPageState extends State<LedgerPage>
     ); // Container
   }
 
-  // ── Helpers ──
+  // â”€â”€ Helpers â”€â”€
 
   TextStyle _headerStyle() => GoogleFonts.poppins(
     fontWeight: FontWeight.bold,
@@ -981,7 +981,7 @@ class _LedgerPageState extends State<LedgerPage>
 
   TextStyle _cellStyle() => GoogleFonts.poppins(fontSize: 13);
 
-  // ── Rider Statement Tab ──
+  // â”€â”€ Rider Statement Tab â”€â”€
 
   Widget _buildRiderStatementTab(LedgerLoaded state) {
     return Column(
@@ -1266,7 +1266,7 @@ class _LedgerPageState extends State<LedgerPage>
 }
 
 
-// ── Suspense Entry Logic ──
+// â”€â”€ Suspense Entry Logic â”€â”€
 void _showSuspenseEntryDialog(BuildContext parentContext) {
   showDialog(
     context: parentContext,
@@ -1740,3 +1740,4 @@ class _ClearSuspenseDialogState extends State<_ClearSuspenseDialog> {
     );
   }
 }
+

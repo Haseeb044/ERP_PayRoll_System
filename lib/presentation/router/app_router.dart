@@ -334,8 +334,15 @@ class AppRouter {
 
 class StreamListenable extends ChangeNotifier {
   final Stream stream;
+  late final dynamic _subscription;
 
   StreamListenable(this.stream) {
-    stream.listen((event) => notifyListeners());
+    _subscription = stream.listen((event) => notifyListeners());
+  }
+
+  @override
+  void dispose() {
+    _subscription.cancel();
+    super.dispose();
   }
 }

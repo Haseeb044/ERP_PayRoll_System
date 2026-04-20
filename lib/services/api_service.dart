@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../data/models/rider_model.dart';
@@ -14,10 +16,30 @@ class ApiService {
   // Singleton pattern
   static final ApiService _instance = ApiService._internal();
   static ApiService get instance => _instance;
-  ApiService._internal();
+  ApiService._internal() {
+    final auth = Supabase.instance.client.auth;
+    _cachedAccessToken = auth.currentSession?.accessToken;
+    _authSub = auth.onAuthStateChange.listen(
+      (event) {
+        _cachedAccessToken = event.session?.accessToken;
+      },
+      onError: (Object error, StackTrace stackTrace) {
+        _cachedAccessToken = null;
+      },
+      cancelOnError: false,
+    );
+  }
+
+  StreamSubscription<AuthState>? _authSub;
+  String? _cachedAccessToken;
+
+  void dispose() {
+    _authSub?.cancel();
+    _authSub = null;
+  }
 
   Map<String, String> get _headers {
-    final token = Supabase.instance.client.auth.currentSession?.accessToken;
+    final token = _cachedAccessToken;
     return {
       'Content-Type': 'application/json',
       if (token != null) 'Authorization': 'Bearer $token',
@@ -146,10 +168,12 @@ class ApiService {
       final response = await http.post(url, headers: _headers, body: body);
 
       if (response.statusCode != 200) {
-        print('Failed to assign bike $bikePlate to $riderId: ${response.body}');
+        debugPrint(
+          'Failed to assign bike $bikePlate to $riderId: ${response.body}',
+        );
       }
     } catch (e) {
-      print('Error assigning bike: $e');
+      debugPrint('Error assigning bike: $e');
     }
   }
 
@@ -162,7 +186,7 @@ class ApiService {
           .order('bike_id');
       return (response as List).map((e) => BikeModel.fromJson(e)).toList();
     } catch (e) {
-      print('Error fetching bikes: $e');
+      debugPrint('Error fetching bikes: $e');
       return [];
     }
   }
@@ -203,7 +227,7 @@ class ApiService {
         throw Exception('Failed to load assignments: ${response.body}');
       }
     } catch (e) {
-      print('Error fetching bike assignments: $e');
+      debugPrint('Error fetching bike assignments: $e');
       throw Exception('Error fetching bike assignments: $e');
     }
   }
@@ -540,12 +564,14 @@ class ApiService {
     String? reason,
   }) async {
     final url = Uri.parse('$baseUrl/payroll/payslip/$payslipId/deduction');
-    final body = jsonEncode({
+    final payload = <String, dynamic>{
       'item_index': itemIndex,
       'new_amount': newAmount,
-      if (expectedLabel != null) 'expected_label': expectedLabel,
+      'expected_label': expectedLabel,
       if (reason != null && reason.trim().isNotEmpty) 'reason': reason.trim(),
-    });
+    };
+    payload.removeWhere((_, value) => value == null);
+    final body = jsonEncode(payload);
 
     try {
       final response = await http.patch(url, headers: _headers, body: body);
@@ -819,13 +845,15 @@ class ApiService {
   }) async {
     final url = Uri.parse('$baseUrl/journals/$journalId/approve');
 
-    final body = jsonEncode({
+    final payload = <String, dynamic>{
       'drawer_id': drawerId,
       'payment_method': paymentMethod,
       'is_receivable': isReceivable,
-      if (receivableAmount != null) 'receivable_amount': receivableAmount,
+      'receivable_amount': receivableAmount,
       'lines': lines,
-    });
+    };
+    payload.removeWhere((_, value) => value == null);
+    final body = jsonEncode(payload);
 
     try {
       final response = await http.post(url, headers: _headers, body: body);
@@ -870,14 +898,16 @@ class ApiService {
     String? description,
   }) async {
     final url = Uri.parse('$baseUrl/journals/$journalId/pay-vendor');
-    final body = jsonEncode({
+    final payload = <String, dynamic>{
       'amount': amount,
       'drawer_id': drawerId,
       'payment_method': paymentMethod,
-      if (entryDate != null) 'entry_date': entryDate,
+      'entry_date': entryDate,
       if (description != null && description.trim().isNotEmpty)
         'description': description.trim(),
-    });
+    };
+    payload.removeWhere((_, value) => value == null);
+    final body = jsonEncode(payload);
 
     try {
       final response = await http.post(url, headers: _headers, body: body);
@@ -1563,10 +1593,11 @@ class ApiService {
     final url = Uri.parse('$baseUrl/riders/$riderId/status');
     final body = <String, dynamic>{
       'status': status,
-      if (reason != null) 'reason': reason,
-      if (effectiveFrom != null) 'effective_from': effectiveFrom,
-      if (expectedReturnDate != null) 'expected_return_date': expectedReturnDate,
+      'reason': reason,
+      'effective_from': effectiveFrom,
+      'expected_return_date': expectedReturnDate,
     };
+    body.removeWhere((_, value) => value == null);
     try {
       final response = await http.post(url, headers: _headers, body: jsonEncode(body));
       if (response.statusCode != 200) {
@@ -1600,9 +1631,10 @@ class ApiService {
     final url = Uri.parse('$baseUrl/riders/$riderId/release-hold');
     final body = <String, dynamic>{
       'release_hold': releaseHold,
-      if (reason != null) 'reason': reason,
-      if (holdUntil != null) 'hold_until': holdUntil,
+      'reason': reason,
+      'hold_until': holdUntil,
     };
+    body.removeWhere((_, value) => value == null);
     try {
       final response = await http.post(url, headers: _headers, body: jsonEncode(body));
       if (response.statusCode != 200) {
@@ -1636,8 +1668,9 @@ class ApiService {
     final body = <String, dynamic>{
       'platform': platform,
       'platform_rider_id': platformRiderId,
-      if (validFrom != null) 'valid_from': validFrom,
+      'valid_from': validFrom,
     };
+    body.removeWhere((_, value) => value == null);
 
     try {
       final response = await http.post(url, headers: _headers, body: jsonEncode(body));

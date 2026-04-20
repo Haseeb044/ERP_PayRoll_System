@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../data/models/drawer_model.dart';
@@ -37,7 +37,7 @@ class DrawerCard extends StatelessWidget {
           gradient: LinearGradient(
             colors: [
               Color(drawer.colorCode),
-              Color(drawer.colorCode).withOpacity(0.7),
+              Color(drawer.colorCode).withValues(alpha: 0.7),
             ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
@@ -45,7 +45,7 @@ class DrawerCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: Color(drawer.colorCode).withOpacity(0.4),
+              color: Color(drawer.colorCode).withValues(alpha: 0.4),
               blurRadius: 15,
               offset: const Offset(0, 8),
             ),
@@ -259,10 +259,11 @@ class _ActionButton extends StatelessWidget {
       onPressed: onPressed,
       tooltip: tooltip,
       style: IconButton.styleFrom(
-        backgroundColor: Colors.white.withOpacity(0.2),
+        backgroundColor: Colors.white.withValues(alpha: 0.2),
         padding: const EdgeInsets.all(8),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
     );
   }
 }
+

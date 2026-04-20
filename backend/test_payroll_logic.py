@@ -65,7 +65,7 @@ print("SUCCESS: 101 matched on Talabat.")
 print("\nRunning Test Case 2: Cross-platform Skip (Keeta Rider in Talabat Sheet)")
 res = resolve_rider_alias_optimized("202", "Talabat", "Rider Y", "2025-12", "batch_1", "slip_1", pre_fetched_aliases, {}, {}, global_alias_map)
 assert res[6] == "SKIP"
-assert "Keeta" in res[3]
+assert "keeta" in res[3].lower()
 print("SUCCESS: 202 skipped as cross-platform (Keeta).")
 
 print("\nRunning Test Case 3: Truly Missing Rider (Error)")

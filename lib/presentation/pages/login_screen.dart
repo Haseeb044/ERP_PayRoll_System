@@ -1,8 +1,9 @@
-import 'dart:ui';
+﻿import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/app_theme.dart';
+import '../../data/models/user_model.dart';
 import '../../logic/auth/auth_bloc.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -17,6 +18,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isPasswordVisible = false;
+  UserRole? _selectedRole;
 
   @override
   void dispose() {
@@ -26,11 +28,23 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _onLoginPressed() {
+    final selectedRole = _selectedRole;
+    if (selectedRole == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select your role before signing in.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
     if (_formKey.currentState!.validate()) {
       context.read<AuthBloc>().add(
         SignInRequested(
           _emailController.text.trim(),
           _passwordController.text.trim(),
+          selectedRole,
         ),
       );
     }
@@ -91,7 +105,7 @@ class _LoginScreenState extends State<LoginScreen> {
               height: 400,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.white.withOpacity(0.05),
+                color: Colors.white.withValues(alpha: 0.05),
               ),
             ),
           ),
@@ -103,7 +117,7 @@ class _LoginScreenState extends State<LoginScreen> {
               height: 300,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.white.withOpacity(0.05),
+                color: Colors.white.withValues(alpha: 0.05),
               ),
             ),
           ),
@@ -123,7 +137,7 @@ class _LoginScreenState extends State<LoginScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.1),
+              color: Colors.white.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(30),
             ),
             child: Text(
@@ -150,7 +164,7 @@ class _LoginScreenState extends State<LoginScreen> {
           Text(
             "Securely manage riders, payroll, and expenses with our state-of-the-art ERP system.",
             style: GoogleFonts.poppins(
-              color: Colors.white.withOpacity(0.8),
+              color: Colors.white.withValues(alpha: 0.8),
               fontSize: 16,
               height: 1.6,
             ),
@@ -169,10 +183,10 @@ class _LoginScreenState extends State<LoginScreen> {
           width: 450,
           padding: const EdgeInsets.all(40),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.15),
+            color: Colors.white.withValues(alpha: 0.15),
             borderRadius: BorderRadius.circular(32),
             border: Border.all(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
               width: 1.5,
             ),
           ),
@@ -202,7 +216,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         borderRadius: BorderRadius.circular(20),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
+                            color: Colors.black.withValues(alpha: 0.1),
                             blurRadius: 20,
                             offset: const Offset(0, 10),
                           ),
@@ -251,10 +265,10 @@ class _LoginScreenState extends State<LoginScreen> {
                       setState(() => _isPasswordVisible = !_isPasswordVisible);
                     },
                   ),
+                  const SizedBox(height: 24),
+                  _buildRoleSelector(),
                   const SizedBox(height: 40),
                   _buildLoginButton(),
-                  const SizedBox(height: 32),
-                  _buildDevSection(),
                 ],
               ),
             ),
@@ -282,7 +296,7 @@ class _LoginScreenState extends State<LoginScreen> {
         hintText: hint,
         hintStyle: GoogleFonts.poppins(color: Colors.white54, fontSize: 14),
         filled: true,
-        fillColor: Colors.white.withOpacity(0.1),
+        fillColor: Colors.white.withValues(alpha: 0.1),
         prefixIcon: Icon(icon, color: Colors.white70, size: 22),
         suffixIcon: isPassword
             ? IconButton(
@@ -303,7 +317,7 @@ class _LoginScreenState extends State<LoginScreen> {
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide(
-            color: Colors.white.withOpacity(0.1),
+            color: Colors.white.withValues(alpha: 0.1),
             width: 1,
           ),
         ),
@@ -320,6 +334,53 @@ class _LoginScreenState extends State<LoginScreen> {
         if (value == null || value.isEmpty) {
           return 'Please enter your $hint';
         }
+        if (hint == 'Email address' && !value.contains('@')) {
+          return 'Please enter a valid email';
+        }
+        return null;
+      },
+    );
+  }
+
+  Widget _buildRoleSelector() {
+    return DropdownButtonFormField<UserRole>(
+      initialValue: _selectedRole,
+      dropdownColor: const Color(0xFF0F5132),
+      iconEnabledColor: Colors.white70,
+      style: GoogleFonts.poppins(color: Colors.white, fontSize: 14),
+      decoration: InputDecoration(
+        hintText: 'Select role',
+        hintStyle: GoogleFonts.poppins(color: Colors.white54, fontSize: 14),
+        filled: true,
+        fillColor: Colors.white.withValues(alpha: 0.1),
+        prefixIcon: const Icon(Icons.badge_outlined, color: Colors.white70),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1), width: 1),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: AppTheme.secondaryColor, width: 2),
+        ),
+        contentPadding: const EdgeInsets.all(20),
+      ),
+      items: const [
+        DropdownMenuItem(
+          value: UserRole.accountant,
+          child: Text('Accountant'),
+        ),
+        DropdownMenuItem(
+          value: UserRole.pro,
+          child: Text('PRO'),
+        ),
+      ],
+      onChanged: (value) => setState(() => _selectedRole = value),
+      validator: (value) {
+        if (value == null) return 'Please select your role';
         return null;
       },
     );
@@ -329,6 +390,7 @@ class _LoginScreenState extends State<LoginScreen> {
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, state) {
         final isLoading = state is AuthLoading;
+        final canSubmit = _selectedRole != null;
 
         return Container(
           height: 60,
@@ -341,14 +403,14 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
             boxShadow: [
               BoxShadow(
-                color: AppTheme.secondaryColor.withOpacity(0.3),
+                color: AppTheme.secondaryColor.withValues(alpha: 0.3),
                 blurRadius: 15,
                 offset: const Offset(0, 10),
               ),
             ],
           ),
           child: ElevatedButton(
-            onPressed: isLoading ? null : _onLoginPressed,
+            onPressed: (isLoading || !canSubmit) ? null : _onLoginPressed,
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.transparent,
               shadowColor: Colors.transparent,
@@ -379,83 +441,5 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Widget _buildDevSection() {
-    return Column(
-      children: [
-        Row(
-          children: [
-            Expanded(child: Divider(color: Colors.white.withOpacity(0.1))),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                "DEVELOPMENT PRESETS",
-                style: GoogleFonts.outfit(
-                  color: Colors.white24,
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 2,
-                ),
-              ),
-            ),
-            Expanded(child: Divider(color: Colors.white.withOpacity(0.1))),
-          ],
-        ),
-        const SizedBox(height: 24),
-        Row(
-          children: [
-            Expanded(
-              child: _DevButton(
-                icon: Icons.admin_panel_settings_rounded,
-                label: "Accountant",
-                onPressed: () {
-                  _emailController.text = 'accountant@erp.com';
-                  _passwordController.text = 'Accountant123!';
-                  _onLoginPressed();
-                },
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: _DevButton(
-                icon: Icons.person_pin_rounded,
-                label: "PRO",
-                onPressed: () {
-                  _emailController.text = 'pro@erp.com';
-                  _passwordController.text = 'Pro123!';
-                  _onLoginPressed();
-                },
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
 }
 
-class _DevButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onPressed;
-
-  const _DevButton({
-    required this.icon,
-    required this.label,
-    required this.onPressed,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return OutlinedButton.icon(
-      onPressed: onPressed,
-      style: OutlinedButton.styleFrom(
-        foregroundColor: Colors.white70,
-        side: BorderSide(color: Colors.white.withOpacity(0.1)),
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-      icon: Icon(icon, size: 18),
-      label: Text(label, style: GoogleFonts.poppins(fontSize: 12)),
-    );
-  }
-}

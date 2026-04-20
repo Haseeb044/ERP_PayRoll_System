@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:rider_payroll_erp/core/app_theme.dart';
@@ -14,7 +14,7 @@ import 'package:rider_payroll_erp/data/models/user_model.dart';
 import 'package:rider_payroll_erp/data/models/rider_model.dart';
 import 'package:rider_payroll_erp/services/api_service.dart';
 import '../../utils/date_utils.dart';
-// Post New Journal dialog removed — using Complete Journal bottom sheet only
+// Post New Journal dialog removed â€” using Complete Journal bottom sheet only
 
 class JournalsPage extends StatefulWidget {
   final String? highlightExpenseId;
@@ -1271,7 +1271,46 @@ class _PostNewJournalSheetState extends State<_PostNewJournalSheet> {
       // Auto-generate journal lines from template when available, otherwise fall back
       List<Map<String, dynamic>> entries = [];
       try {
-        // No category in this form to query templates by, so skip template lookup.
+        // Use template by journal type when category is unavailable in this form.
+        final templateType = (_journalType ?? 'expense').trim();
+        final templateRows = await _client
+            .from('journal_templates')
+            .select('default_accounts, is_receivable, is_payable')
+            .eq('type', templateType)
+            .order('created_at', ascending: false)
+            .limit(10);
+
+        if (templateRows.isNotEmpty) {
+          Map<String, dynamic>? selectedTemplate;
+
+          // Prefer template whose receivable/payable flags match current posting.
+          for (final row in templateRows) {
+            final m = Map<String, dynamic>.from(row as Map);
+            final tRecv = m['is_receivable'] == true;
+            final tPay = m['is_payable'] == true;
+            if (tRecv == _isReceivable && tPay == _isPayable) {
+              selectedTemplate = m;
+              break;
+            }
+          }
+
+          selectedTemplate ??= Map<String, dynamic>.from(templateRows.first as Map);
+          final defAccounts = selectedTemplate['default_accounts'] as List<dynamic>?;
+          if (defAccounts != null && defAccounts.isNotEmpty) {
+            for (final a in defAccounts) {
+              final acct = Map<String, dynamic>.from(a as Map);
+              final acctId = (acct['account_id'] ?? acct['account'] ?? acct['accountId'] ?? '').toString();
+              if (acctId.isEmpty) continue;
+              final debit = (acct['debit_amount'] ?? acct['debit'] ?? 0) as num? ?? 0;
+              final credit = (acct['credit_amount'] ?? acct['credit'] ?? 0) as num? ?? 0;
+              entries.add({
+                'account_id': acctId,
+                'debit_amount': debit.toDouble(),
+                'credit_amount': credit.toDouble(),
+              });
+            }
+          }
+        }
       } catch (e) {
         // ignore
       }
@@ -1479,7 +1518,7 @@ class _PostNewJournalSheetState extends State<_PostNewJournalSheet> {
                           (d) => DropdownMenuItem(
                             value: d.id,
                             child: Text(
-                              '${d.name} • ${d.balance.toStringAsFixed(2)}',
+                              '${d.name} â€¢ ${d.balance.toStringAsFixed(2)}',
                             ),
                           ),
                         )
@@ -2142,7 +2181,7 @@ class _JournalsPageState extends State<JournalsPage>
     super.dispose();
   }
 
-  // Add Expense dialog removed — no bottom sheet to show
+  // Add Expense dialog removed â€” no bottom sheet to show
 
   @override
   Widget build(BuildContext context) {
@@ -2222,10 +2261,10 @@ class _JournalsPageState extends State<JournalsPage>
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: AppTheme.primaryColor.withOpacity(0.1),
+                        color: AppTheme.primaryColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
-                          color: AppTheme.primaryColor.withOpacity(0.3),
+                          color: AppTheme.primaryColor.withValues(alpha: 0.3),
                         ),
                       ),
                       child: Row(
@@ -2444,7 +2483,7 @@ class _JournalsPageState extends State<JournalsPage>
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            '$dateFormatted • Created by $roleText',
+                            '$dateFormatted â€¢ Created by $roleText',
                             style: GoogleFonts.poppins(
                               color: Colors.grey,
                               fontSize: 12,
@@ -2452,7 +2491,7 @@ class _JournalsPageState extends State<JournalsPage>
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            '⏱ Pending expense • needs drawer & approval',
+                            'â± Pending expense â€¢ needs drawer & approval',
                             style: GoogleFonts.poppins(
                               color: Colors.orange,
                               fontSize: 11,
@@ -2935,7 +2974,7 @@ class _JournalsPageState extends State<JournalsPage>
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  "${journal.date.day}/${journal.date.month}/${journal.date.year} • Created by ${journal.createdByRole.name.toUpperCase()}",
+                  "${journal.date.day}/${journal.date.month}/${journal.date.year} â€¢ Created by ${journal.createdByRole.name.toUpperCase()}",
                   style: GoogleFonts.poppins(color: Colors.grey, fontSize: 12),
                 ),
                 if (journal.reversalOfJournalId != null)
@@ -3265,3 +3304,4 @@ class _JournalsPageState extends State<JournalsPage>
     );
   }
 }
+

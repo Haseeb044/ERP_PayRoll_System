@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/app_theme.dart';
@@ -335,7 +335,7 @@ class _AliasResolutionScreenState extends State<AliasResolutionScreen> {
         border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -481,7 +481,7 @@ class _AliasResolutionScreenState extends State<AliasResolutionScreen> {
           return ListTile(
             onTap: () => setState(() => _selectedRider = rider),
             selected: isSelected,
-            selectedTileColor: AppTheme.primaryColor.withOpacity(0.05),
+            selectedTileColor: AppTheme.primaryColor.withValues(alpha: 0.05),
             leading: CircleAvatar(
               backgroundColor: isSelected ? AppTheme.primaryColor : const Color(0xFFF1F5F9),
               child: Icon(
@@ -498,7 +498,7 @@ class _AliasResolutionScreenState extends State<AliasResolutionScreen> {
               ),
             ),
             subtitle: Text(
-              "${rider.city ?? 'No City'} • ${rider.status.name.toUpperCase()}",
+              "${rider.city ?? 'No City'} â€¢ ${rider.status.name.toUpperCase()}",
               style: GoogleFonts.poppins(fontSize: 12),
             ),
             trailing: isSelected
@@ -537,3 +537,4 @@ class _AliasResolutionScreenState extends State<AliasResolutionScreen> {
     );
   }
 }
+

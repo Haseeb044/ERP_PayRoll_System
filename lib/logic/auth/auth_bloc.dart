@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
 import '../../data/models/user_model.dart';
@@ -17,14 +19,17 @@ class AppStarted extends AuthEvent {}
 class SignInRequested extends AuthEvent {
   final String email;
   final String password;
+  final UserRole expectedRole;
 
-  const SignInRequested(this.email, this.password);
+  const SignInRequested(this.email, this.password, this.expectedRole);
 
   @override
-  List<Object> get props => [email, password];
+  List<Object> get props => [email, password, expectedRole];
 }
 
 class SignOutRequested extends AuthEvent {}
+
+class UserActivityDetected extends AuthEvent {}
 
 // States
 abstract class AuthState extends Equatable {
@@ -61,6 +66,8 @@ class AuthError extends AuthState {
 // Bloc
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final AuthRepository _authRepository;
+  Timer? _inactivityTimer;
+  static const Duration _idleTimeout = Duration(minutes: 30);
 
   AuthBloc({required AuthRepository authRepository})
     : _authRepository = authRepository,
@@ -68,6 +75,19 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AppStarted>(_onAppStarted);
     on<SignInRequested>(_onSignInRequested);
     on<SignOutRequested>(_onSignOutRequested);
+    on<UserActivityDetected>(_onUserActivityDetected);
+  }
+
+  void _resetInactivityTimer() {
+    _inactivityTimer?.cancel();
+    _inactivityTimer = Timer(_idleTimeout, () {
+      add(SignOutRequested());
+    });
+  }
+
+  void _stopInactivityTimer() {
+    _inactivityTimer?.cancel();
+    _inactivityTimer = null;
   }
 
   Future<void> _onAppStarted(AppStarted event, Emitter<AuthState> emit) async {
@@ -77,16 +97,20 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         final userProfile = await _authRepository.getUserProfile();
         if (userProfile != null) {
           emit(AuthAuthenticated(userProfile));
+          _resetInactivityTimer();
         } else {
-          // Fallback if profile not found but auth exists, or force logout
-          // For this demo, let's treat as unauthenticated or handle appropriately
+          // Profile missing: treat as unauthenticated and require explicit login.
           emit(AuthUnauthenticated());
+          _stopInactivityTimer();
         }
       } else {
         emit(AuthUnauthenticated());
+        _stopInactivityTimer();
       }
     } catch (_) {
+      // Startup auth/profile checks failed; keep app on login without extra signout retries.
       emit(AuthUnauthenticated());
+      _stopInactivityTimer();
     }
   }
 
@@ -100,14 +124,27 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       final userProfile = await _authRepository.getUserProfile();
 
       if (userProfile != null) {
+        if (userProfile.role != event.expectedRole) {
+          await _authRepository.signOut();
+          emit(
+            AuthError(
+              'Selected role does not match this account. Please choose ${userProfile.role.name.toUpperCase()} and try again.',
+            ),
+          );
+          _stopInactivityTimer();
+          return;
+        }
         emit(AuthAuthenticated(userProfile));
+        _resetInactivityTimer();
       } else {
         emit(const AuthError("User profile not found"));
         // Optionally sign out if profile is missing
         await _authRepository.signOut();
+        _stopInactivityTimer();
       }
     } catch (e) {
       emit(AuthError(toUserFriendlyError(e)));
+      _stopInactivityTimer();
     }
   }
 
@@ -117,5 +154,21 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     await _authRepository.signOut();
     emit(AuthUnauthenticated());
+    _stopInactivityTimer();
+  }
+
+  Future<void> _onUserActivityDetected(
+    UserActivityDetected event,
+    Emitter<AuthState> emit,
+  ) async {
+    if (state is AuthAuthenticated) {
+      _resetInactivityTimer();
+    }
+  }
+
+  @override
+  Future<void> close() {
+    _stopInactivityTimer();
+    return super.close();
   }
 }

@@ -1,4 +1,4 @@
-import 'dart:ui';
+﻿import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -520,7 +520,7 @@ class _PayslipPreviewScreenState extends State<PayslipPreviewScreen> {
               widget.payslip.riderName,
               style: TextStyle(
                 fontSize: 12,
-                color: theme.textTheme.bodySmall?.color?.withOpacity(0.8),
+                color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.8),
               ),
             ),
           ],
@@ -657,7 +657,7 @@ class _PayslipPreviewScreenState extends State<PayslipPreviewScreen> {
               decoration: BoxDecoration(
                 color: isDark ? const Color(0xFF1E293B) : Colors.white,
                 border: Border(
-                  top: BorderSide(color: theme.dividerColor.withOpacity(0.1)),
+                  top: BorderSide(color: theme.dividerColor.withValues(alpha: 0.1)),
                 ),
               ),
               child: Row(
@@ -725,12 +725,12 @@ class _PayslipPreviewScreenState extends State<PayslipPreviewScreen> {
         child: Container(
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
-            color: isDark ? Colors.white.withOpacity(0.05) : Colors.white,
+            color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white,
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: Colors.white.withOpacity(0.1)),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withValues(alpha: 0.05),
                 blurRadius: 20,
                 offset: const Offset(0, 10),
               ),
@@ -762,7 +762,7 @@ class _PayslipPreviewScreenState extends State<PayslipPreviewScreen> {
               'ID: ${payslip.externalId}',
               style: TextStyle(
                 fontSize: 12,
-                color: Colors.grey.withOpacity(0.6),
+                color: Colors.grey.withValues(alpha: 0.6),
               ),
             ),
             if ((payslip.platform ?? '').isNotEmpty)
@@ -770,7 +770,7 @@ class _PayslipPreviewScreenState extends State<PayslipPreviewScreen> {
                 'Company: ${payslip.platform!.toUpperCase()}',
                 style: TextStyle(
                   fontSize: 12,
-                  color: Colors.grey.withOpacity(0.8),
+                  color: Colors.grey.withValues(alpha: 0.8),
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -780,8 +780,8 @@ class _PayslipPreviewScreenState extends State<PayslipPreviewScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
             color: payslip.status == PayslipDraftStatus.finalized
-                ? Colors.green.withOpacity(0.1)
-                : Colors.orange.withOpacity(0.1),
+                ? Colors.green.withValues(alpha: 0.1)
+                : Colors.orange.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(20),
           ),
           child: Text(
@@ -956,7 +956,7 @@ class _PayslipPreviewScreenState extends State<PayslipPreviewScreen> {
           decoration: BoxDecoration(
             color: theme.cardColor,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: theme.dividerColor.withOpacity(0.1)),
+            border: Border.all(color: theme.dividerColor.withValues(alpha: 0.1)),
           ),
           child: Column(
             children: [
@@ -1032,3 +1032,4 @@ class _PayslipPreviewScreenState extends State<PayslipPreviewScreen> {
     );
   }
 }
+

@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -163,7 +163,7 @@ class _AuditLogPageState extends State<AuditLogPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Header ──
+            // â”€â”€ Header â”€â”€
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -209,7 +209,7 @@ class _AuditLogPageState extends State<AuditLogPage> {
                       _clearActionFilter();
                     }
                   },
-                  selectedColor: AppTheme.primaryColor.withOpacity(0.2),
+                  selectedColor: AppTheme.primaryColor.withValues(alpha: 0.2),
                 ),
                 ChoiceChip(
                   label: const Text('INSERT'),
@@ -218,7 +218,7 @@ class _AuditLogPageState extends State<AuditLogPage> {
                     _selectedAction = selected ? 'INSERT' : null;
                     _applyFilters();
                   },
-                  selectedColor: Colors.green.withOpacity(0.2),
+                  selectedColor: Colors.green.withValues(alpha: 0.2),
                 ),
                 ChoiceChip(
                   label: const Text('UPDATE'),
@@ -227,7 +227,7 @@ class _AuditLogPageState extends State<AuditLogPage> {
                     _selectedAction = selected ? 'UPDATE' : null;
                     _applyFilters();
                   },
-                  selectedColor: Colors.blue.withOpacity(0.2),
+                  selectedColor: Colors.blue.withValues(alpha: 0.2),
                 ),
                 ChoiceChip(
                   label: const Text('DELETE'),
@@ -236,7 +236,7 @@ class _AuditLogPageState extends State<AuditLogPage> {
                     _selectedAction = selected ? 'DELETE' : null;
                     _applyFilters();
                   },
-                  selectedColor: Colors.red.withOpacity(0.2),
+                  selectedColor: Colors.red.withValues(alpha: 0.2),
                 ),
               ],
             ),
@@ -248,9 +248,9 @@ class _AuditLogPageState extends State<AuditLogPage> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: AppTheme.primaryColor.withOpacity(0.1),
+                      color: AppTheme.primaryColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: AppTheme.primaryColor.withOpacity(0.3)),
+                      border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.3)),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -278,7 +278,7 @@ class _AuditLogPageState extends State<AuditLogPage> {
             ],
             const SizedBox(height: 24),
 
-            // ── Content ──
+            // â”€â”€ Content â”€â”€
             Expanded(
               child: Builder(
                 builder: (context) {
@@ -327,7 +327,7 @@ class _AuditLogPageState extends State<AuditLogPage> {
     );
   }
 
-  // ─── Widgets ──────────────────────────────────────────────
+  // â”€â”€â”€ Widgets â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   Widget _buildTableFilter() {
     final tables = _tableNames;
@@ -464,7 +464,7 @@ class _AuditLogPageState extends State<AuditLogPage> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                         decoration: BoxDecoration(
-                          color: _actionColor(action).withOpacity(0.8),
+                          color: _actionColor(action).withValues(alpha: 0.8),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
@@ -601,7 +601,7 @@ class _AuditLogPageState extends State<AuditLogPage> {
     );
   }
 
-  // ─── Helpers ──────────────────────────────────────────────
+  // â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   Color _actionColor(String action) {
     switch (action.toUpperCase()) {
@@ -637,3 +637,4 @@ class _AuditLogPageState extends State<AuditLogPage> {
   String _fmtTime(DateTime d) =>
       '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
 }
+

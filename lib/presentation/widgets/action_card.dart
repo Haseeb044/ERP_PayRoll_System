@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
 import '../../data/models/action_item_model.dart';
@@ -9,6 +9,64 @@ class ActionCard extends StatelessWidget {
   final VoidCallback onDismiss;
 
   const ActionCard({super.key, required this.action, required this.onDismiss});
+
+  void _openAction(BuildContext context) {
+    // Keep existing mappings first, then apply safe fallbacks for legacy/partial routes.
+    if (action.type == ActionType.journal_pending_approval ||
+        action.route.contains('journal-approval')) {
+      context.go('/journals', extra: action.argumentId ?? action.referenceId);
+      return;
+    }
+
+    if (action.route.contains('rider-approval')) {
+      context.go(
+        action.route,
+        extra: {
+          'requestId': action.referenceId,
+          'actionItemId': action.id,
+        },
+      );
+      return;
+    }
+
+    // Alias mismatch screen requires /alias-resolution/:actionItemId.
+    if (action.type == ActionType.alias_mismatch ||
+        action.route.startsWith('/alias-resolution')) {
+      context.go(
+        '/alias-resolution/${action.id}',
+        extra: {
+          'payslipId': action.argumentId ?? action.referenceId,
+        },
+      );
+      return;
+    }
+
+    if (action.route.trim().isEmpty) {
+      // Last-resort fallback by action type to avoid dead Resolve buttons.
+      switch (action.type) {
+        case ActionType.fine_unmatched:
+          context.go('/fines', extra: action.argumentId ?? action.referenceId);
+          break;
+        case ActionType.insufficient_funds:
+          context.go('/drawers');
+          break;
+        case ActionType.bike_overlap:
+          context.go('/assets');
+          break;
+        case ActionType.duplicate_payslip:
+          context.go('/payroll');
+          break;
+        case ActionType.rider_pending_approval:
+          context.go('/riders');
+          break;
+        default:
+          context.go('/actions');
+      }
+      return;
+    }
+
+    context.go(action.route, extra: action.argumentId ?? action.referenceId);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -21,6 +79,9 @@ class ActionCard extends StatelessWidget {
         ? const Color(0xFFEF4444)
         : const Color(0xFFF97316);
     final iconData = isBlocker ? Icons.warning_rounded : Icons.schedule;
+    final reasonText = action.subtitle.trim().isEmpty
+      ? 'Action requires review before continuing.'
+      : action.subtitle.trim();
 
     return Dismissible(
       key: Key(action.id),
@@ -40,7 +101,7 @@ class ActionCard extends StatelessWidget {
           border: Border.all(color: borderColor),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.02),
+              color: Colors.black.withValues(alpha: 0.02),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -53,7 +114,7 @@ class ActionCard extends StatelessWidget {
               decoration: BoxDecoration(
                 color: Colors.white,
                 shape: BoxShape.circle,
-                border: Border.all(color: borderColor.withOpacity(0.5)),
+                border: Border.all(color: borderColor.withValues(alpha: 0.5)),
               ),
               child: Icon(iconData, color: iconColor, size: 20),
             ),
@@ -81,40 +142,28 @@ class ActionCard extends StatelessWidget {
                 ],
               ),
             ),
-            ElevatedButton(
-              onPressed: () {
-                  // Map journal_pending_approval / journal-approval routes to Journals page
-                  if (action.type == ActionType.journal_pending_approval || action.route.contains('journal-approval')) {
-                    context.go('/journals', extra: action.argumentId ?? action.referenceId);
-                  } else if (action.route.contains('rider-approval')) {
-                    context.go(
-                      action.route,
-                      extra: {
-                        'requestId': action.referenceId,
-                        'actionItemId': action.id,
-                      },
-                    );
-                  } else {
-                    context.go(action.route, extra: action.argumentId);
-                  }
-                },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryColor,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
+            Tooltip(
+              message: 'Reason: $reasonText',
+              child: ElevatedButton(
+                onPressed: () => _openAction(context),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryColor,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                 ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              child: Text(
-                "Resolve",
-                style: GoogleFonts.poppins(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 12,
+                child: Text(
+                  "Resolve",
+                  style: GoogleFonts.poppins(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                  ),
                 ),
               ),
             ),
@@ -124,3 +173,4 @@ class ActionCard extends StatelessWidget {
     );
   }
 }
+

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../logic/actions/action_bloc.dart';
@@ -232,9 +232,9 @@ class _ActionsViewState extends State<ActionsView> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryColor.withOpacity(0.1),
+                  color: AppTheme.primaryColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: AppTheme.primaryColor.withOpacity(0.3)),
+                  border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.3)),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -264,3 +264,4 @@ class _ActionsViewState extends State<ActionsView> {
     );
   }
 }
+

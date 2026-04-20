@@ -1,7 +1,5 @@
 
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 import 'report_repository.dart';
 
 class SupabaseReportRepository implements ReportRepository {
@@ -208,7 +206,7 @@ class SupabaseReportRepository implements ReportRepository {
           final desc = description.trim();
           final cat = isVendorSettlementPayment
               ? 'Vendor Payment (Pay Later Settlement)'
-              : ((desc == null || desc.isEmpty) ? 'Expense' : desc);
+              : (desc.isEmpty ? 'Expense' : desc);
           categories[cat] = (categories[cat] ?? 0) + amt;
         }
       }
@@ -321,8 +319,9 @@ class SupabaseReportRepository implements ReportRepository {
         final diff = now.difference(sourceDate).inDays;
         final amount = (safeF['amount'] as num?)?.toDouble() ?? 0.0;
 
-        if (diff <= 30) aging['0-30 days'] = (aging['0-30 days'] ?? 0) + amount;
-        else if (diff <= 60) aging['31-60 days'] = (aging['31-60 days'] ?? 0) + amount;
+        if (diff <= 30) {
+          aging['0-30 days'] = (aging['0-30 days'] ?? 0) + amount;
+        } else if (diff <= 60) aging['31-60 days'] = (aging['31-60 days'] ?? 0) + amount;
         else if (diff <= 90) aging['61-90 days'] = (aging['61-90 days'] ?? 0) + amount;
         else aging['90+ days'] = (aging['90+ days'] ?? 0) + amount;
       }

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../logic/riders/riders_bloc.dart';
@@ -140,7 +140,7 @@ class _ManualAssignmentDialogState extends State<ManualAssignmentDialog> {
                             return ListTile(
                               dense: true,
                               selected: isSelected,
-                              selectedTileColor: AppTheme.primaryColor.withOpacity(0.1),
+                              selectedTileColor: AppTheme.primaryColor.withValues(alpha: 0.1),
                               title: Text(
                                 rider.name,
                                 style: GoogleFonts.poppins(
@@ -217,3 +217,4 @@ class _ManualAssignmentDialogState extends State<ManualAssignmentDialog> {
     );
   }
 }
+

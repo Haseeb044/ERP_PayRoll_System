@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks
+from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -28,6 +28,11 @@ print(f"Loading .env from: {env_path}")
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
 SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY")
+JOURNAL_REVERSAL_TIMELOCK_DAYS = int(os.getenv("JOURNAL_REVERSAL_TIMELOCK_DAYS", "0") or "0")
+ALLOWED_LOGIN_IPS_RAW = os.getenv("ALLOWED_LOGIN_IPS", "")
+ALLOWED_LOGIN_IPS = {
+    ip.strip() for ip in ALLOWED_LOGIN_IPS_RAW.split(",") if ip.strip()
+}
 
 if not SUPABASE_URL:
     raise RuntimeError(f"Supabase credentials not found. Checked path: {env_path}")
@@ -281,8 +286,39 @@ def require_role(required_roles: str | list[str]):
     return role_checker
 
 
+def _request_client_meta(request: Request) -> dict:
+    forwarded = request.headers.get("x-forwarded-for", "").strip()
+    forwarded_ip = forwarded.split(",")[0].strip() if forwarded else None
+    real_ip = request.headers.get("x-real-ip", "").strip() or None
+    direct_ip = request.client.host if request.client else None
+    return {
+        "ip": forwarded_ip or real_ip or direct_ip,
+        "user_agent": request.headers.get("user-agent"),
+        "device_id": request.headers.get("x-device-id"),
+        "platform": request.headers.get("sec-ch-ua-platform"),
+    }
+
+
 @app.post("/login")
-def login(data: LoginRequest):
+def login(data: LoginRequest, request: Request):
+    client_meta = _request_client_meta(request)
+
+    if ALLOWED_LOGIN_IPS:
+        request_ip = (client_meta.get("ip") or "").strip()
+        if request_ip not in ALLOWED_LOGIN_IPS:
+            write_audit_log(
+                table_name="auth_sessions",
+                record_id=str(uuid.uuid4()),
+                action="LOGIN_BLOCKED_IP",
+                new_data={
+                    "email": data.email,
+                    "allowed_ips": sorted(ALLOWED_LOGIN_IPS),
+                    **client_meta,
+                },
+                user_id=None,
+            )
+            raise HTTPException(status_code=403, detail="Login blocked from this IP")
+
     payload = {
         "email": data.email,
         "password": data.password,
@@ -300,15 +336,49 @@ def login(data: LoginRequest):
     )
 
     if response.status_code != 200:
+        # Keep minimal failed-login trace for security visibility.
+        write_audit_log(
+            table_name="auth_sessions",
+            record_id=str(uuid.uuid4()),
+            action="LOGIN_FAILED",
+            new_data={
+                "email": data.email,
+                **client_meta,
+            },
+            user_id=None,
+        )
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
+    auth_data = response.json()
+    user_id = (auth_data.get("user") or {}).get("id")
+
+    write_audit_log(
+        table_name="auth_sessions",
+        record_id=str(uuid.uuid4()),
+        action="LOGIN_SUCCESS",
+        new_data={
+            "email": data.email,
+            **client_meta,
+        },
+        user_id=user_id,
+    )
+
     # Return the token response from Supabase (includes access_token, refresh_token, etc.)
-    return response.json()
+    return auth_data
 
 
 @app.post("/logout")
-def logout(credentials: HTTPAuthorizationCredentials = Depends(security)):
+def logout(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+):
     token = credentials.credentials
+
+    user_id = None
+    try:
+        user_id = get_user_from_token(token).get("id")
+    except Exception:
+        user_id = None
 
     headers = {
         "apikey": SUPABASE_ANON_KEY,
@@ -322,6 +392,14 @@ def logout(credentials: HTTPAuthorizationCredentials = Depends(security)):
 
     if response.status_code not in (200, 204):
         raise HTTPException(status_code=400, detail="Logout failed")
+
+    write_audit_log(
+        table_name="auth_sessions",
+        record_id=str(uuid.uuid4()),
+        action="LOGOUT",
+        new_data=_request_client_meta(request),
+        user_id=user_id,
+    )
 
     return {"message": "Logged out successfully"}
 
@@ -1276,6 +1354,8 @@ def add_rider_with_action_item(
             "severity": "warning",
             "responsible_role": "accountant",
             "reference_id": rider_id,
+            "argument_id": rider_id,
+            "route": "/accountant-dashboard/rider-approval",
             "created_at": datetime.utcnow().isoformat(),
         }).execute()
 
@@ -2800,6 +2880,7 @@ class JournalCreate(BaseModel):
 
 class JournalReverseRequest(BaseModel):
     reason: str
+    owner_note: str | None = None
 
 
 class VendorPaymentRequest(BaseModel):
@@ -3482,6 +3563,26 @@ def reverse_journal(
                 detail=f"Only 'posted' journals can be reversed. Current status: {original['status']}"
             )
 
+        # Optional timelock (disabled by default): require owner note for old journals.
+        if JOURNAL_REVERSAL_TIMELOCK_DAYS > 0:
+            created_at_raw = original.get("created_at") or original.get("entry_date")
+            created_at_dt = None
+            try:
+                if created_at_raw:
+                    created_at_dt = parse_date(str(created_at_raw))
+            except Exception:
+                created_at_dt = None
+            if created_at_dt is not None:
+                age_days = (datetime.now() - created_at_dt).days
+                if age_days > JOURNAL_REVERSAL_TIMELOCK_DAYS and not (data.owner_note or "").strip():
+                    raise HTTPException(
+                        status_code=400,
+                        detail=(
+                            f"Journal is older than {JOURNAL_REVERSAL_TIMELOCK_DAYS} days. "
+                            "Owner note is required to reverse this journal."
+                        ),
+                    )
+
         lines = original.get("journal_lines", [])
         if not lines:
              raise HTTPException(status_code=400, detail="Journal has no lines to reverse")
@@ -3501,6 +3602,8 @@ def reverse_journal(
             "payment_method": original.get("payment_method"),
             "drawer_id": original.get("drawer_id"),
         }
+        if (data.owner_note or "").strip():
+            reversal_data["source_document_ref"] = f"owner_note: {(data.owner_note or '').strip()}"
 
         # Insert reversal
         rev_res = supabase.table("journals").insert(reversal_data).execute()
@@ -4337,15 +4440,16 @@ def resolve_rider_alias_optimized(
 
         # Step 6: Failure Case
         error_msg = f"Rider ID {cleaned_id} not found."
+        action_item_id = str(uuid.uuid4())
         action_item_data = {
-            "id": str(uuid.uuid4()),
+            "id": action_item_id,
             "type": "alias_mismatch",
             "severity": "blocker",
             "responsible_role": "accountant",
             "title": f"Unknown Rider: {rider_name}",
             "subtitle": f"Platform ID {cleaned_id} mismatch.",
             "reference_id": payslip_id,
-            "route": "/alias-resolution", 
+            "route": f"/alias-resolution/{action_item_id}",
             "argument_id": payslip_id, # Link for convenience
         }
         return None, None, None, error_msg, None, action_item_data, "ERROR"
@@ -5199,43 +5303,140 @@ def finalize_payroll(
         journals_to_insert = []
         lines_to_insert = []
         journal_ids_to_post = []
+
+        drawer_account_id = "CASH-BANK"
+        drawer_name = (drawer_res.data.get("name") or "").strip().lower()
+        if drawer_name == "cash":
+            drawer_account_id = "CASH-MAIN"
+        elif drawer_name == "noqodi":
+            drawer_account_id = "CASH-NOQODI"
         
         for p in pending_payslips:
-            journal_id = str(uuid.uuid4())
-            # Header
-            journal_data = {
-                "id": journal_id,
-                "entry_date": datetime.now().strftime("%Y-%m-%d"),
-                "description": f"Salary Payment: {batch['month']} - {p['rider_name']}",
-                "total_amount": p["net_salary"],
+            rider_id = p.get("rider_id")
+            rider_name = p.get("rider_name") or "Unknown Rider"
+            gross_salary = float(p.get("gross_salary") or 0)
+            net_salary = float(p.get("net_salary") or 0)
+            deduction_amount = max(0.0, gross_salary - net_salary)
+            entry_date = datetime.now().strftime("%Y-%m-%d")
+
+            gross_journal_id = str(uuid.uuid4())
+            journals_to_insert.append({
+                "id": gross_journal_id,
+                "entry_date": entry_date,
+                "description": f"Salary Accrual (Gross): {batch['month']} - {rider_name}",
+                "total_amount": gross_salary,
+                "status": "draft",
+                "type": "salary",
+                "created_by_user_id": user["id"],
+                "created_by_role": "accountant",
+                "party_type": "rider",
+                "party_id": rider_id,
+                "receivable_entity_type": "rider",
+                "receivable_entity_id": rider_id,
+                "source_document_ref": f"payslip:{p.get('id')}",
+            })
+            journal_ids_to_post.append(gross_journal_id)
+
+            lines_to_insert.extend([
+                {
+                    "journal_id": gross_journal_id,
+                    "account_id": "salary_expense",
+                    "debit_amount": gross_salary,
+                    "credit_amount": 0,
+                    "drawer_id": None,
+                    "party_type": "rider",
+                    "party_id": rider_id,
+                },
+                {
+                    "journal_id": gross_journal_id,
+                    "account_id": "salary_payable",
+                    "debit_amount": 0,
+                    "credit_amount": gross_salary,
+                    "drawer_id": None,
+                    "party_type": "rider",
+                    "party_id": rider_id,
+                },
+            ])
+
+            if deduction_amount > 0:
+                deduction_journal_id = str(uuid.uuid4())
+                journals_to_insert.append({
+                    "id": deduction_journal_id,
+                    "entry_date": entry_date,
+                    "description": f"Salary Deduction Applied: {batch['month']} - {rider_name}",
+                    "total_amount": deduction_amount,
+                    "status": "draft",
+                    "type": "salary",
+                    "created_by_user_id": user["id"],
+                    "created_by_role": "accountant",
+                    "party_type": "rider",
+                    "party_id": rider_id,
+                    "receivable_entity_type": "rider",
+                    "receivable_entity_id": rider_id,
+                    "source_document_ref": f"payslip:{p.get('id')}",
+                })
+                journal_ids_to_post.append(deduction_journal_id)
+
+                lines_to_insert.extend([
+                    {
+                        "journal_id": deduction_journal_id,
+                        "account_id": "salary_payable",
+                        "debit_amount": deduction_amount,
+                        "credit_amount": 0,
+                        "drawer_id": None,
+                        "party_type": "rider",
+                        "party_id": rider_id,
+                    },
+                    {
+                        "journal_id": deduction_journal_id,
+                        "account_id": "expense_receivable",
+                        "debit_amount": 0,
+                        "credit_amount": deduction_amount,
+                        "drawer_id": None,
+                        "party_type": "rider",
+                        "party_id": rider_id,
+                    },
+                ])
+
+            net_journal_id = str(uuid.uuid4())
+            journals_to_insert.append({
+                "id": net_journal_id,
+                "entry_date": entry_date,
+                "description": f"Net Salary Payment: {batch['month']} - {rider_name}",
+                "total_amount": net_salary,
                 "status": "draft",
                 "type": "salary",
                 "created_by_user_id": user["id"],
                 "created_by_role": "accountant",
                 "payment_method": data.payment_method,
                 "drawer_id": data.drawer_id,
+                "party_type": "rider",
+                "party_id": rider_id,
                 "receivable_entity_type": "rider",
-                "receivable_entity_id": p["rider_id"],
-            }
-            journals_to_insert.append(journal_data)
-            journal_ids_to_post.append(journal_id)
-            
-            # Lines (Simplified: Salary Expense vs Cash/Bank)
+                "receivable_entity_id": rider_id,
+                "source_document_ref": f"payslip:{p.get('id')}",
+            })
+            journal_ids_to_post.append(net_journal_id)
+
             lines_to_insert.extend([
                 {
-                    "journal_id": journal_id,
-                    "account_id": "SALARY-EXPENSE",
-                    "debit_amount": p["net_salary"],
+                    "journal_id": net_journal_id,
+                    "account_id": "salary_payable",
+                    "debit_amount": net_salary,
                     "credit_amount": 0,
-                    "drawer_id": None
+                    "drawer_id": None,
+                    "party_type": "rider",
+                    "party_id": rider_id,
                 },
                 {
-                    "journal_id": journal_id,
-                    "account_id": "CASH-BANK", # Or specific account for the drawer
+                    "journal_id": net_journal_id,
+                    "account_id": drawer_account_id,
                     "debit_amount": 0,
-                    "credit_amount": p["net_salary"],
-                    "drawer_id": data.drawer_id
-                }
+                    "credit_amount": net_salary,
+                    "drawer_id": data.drawer_id,
+                    "party_type": "rider",
+                    "party_id": rider_id,
+                },
             ])
 
         if journals_to_insert:
@@ -6074,6 +6275,68 @@ def get_action_dismissals(
 
 # --- Action Items from DB (new endpoints) ---
 
+def _normalize_action_item_navigation(item: dict) -> dict:
+    normalized = dict(item)
+    action_type = (normalized.get("type") or "").strip().lower()
+    route = (normalized.get("route") or "").strip()
+    action_id = (normalized.get("id") or "").strip()
+    argument_id = normalized.get("argument_id")
+    reference_id = normalized.get("reference_id")
+
+    # Backfill argument_id from reference_id for legacy rows.
+    if not argument_id and reference_id:
+        normalized["argument_id"] = reference_id
+
+    subtitle = (normalized.get("subtitle") or "").strip()
+    if not subtitle:
+        default_reason_by_type = {
+            "alias_mismatch": "Rider alias mismatch detected. Resolve rider mapping before finalization.",
+            "journal_pending_approval": "Journal is pending accountant approval.",
+            "rider_pending_approval": "Rider profile requires accountant review before use.",
+            "insufficient_funds": "Insufficient drawer funds for the requested posting.",
+            "bike_overlap": "Bike assignment dates overlap. Resolve assignment conflict first.",
+            "duplicate_payslip": "Duplicate payslip detected for rider/month/platform.",
+            "fine_unmatched": "Fine is unmatched and must be assigned before payroll operations.",
+        }
+        normalized["subtitle"] = default_reason_by_type.get(
+            action_type,
+            "Action requires review before continuing.",
+        )
+
+    if action_type == "alias_mismatch":
+        normalized["route"] = f"/alias-resolution/{action_id}" if action_id else "/actions"
+        return normalized
+
+    if action_type == "journal_pending_approval":
+        normalized["route"] = "/journals"
+        return normalized
+
+    if action_type == "rider_pending_approval":
+        # Action card already builds required extras when route contains rider-approval.
+        normalized["route"] = "/accountant-dashboard/rider-approval"
+        return normalized
+
+    if action_type == "insufficient_funds":
+        normalized["route"] = "/drawers"
+        return normalized
+
+    if action_type == "bike_overlap":
+        normalized["route"] = "/assets"
+        return normalized
+
+    if action_type == "duplicate_payslip":
+        normalized["route"] = "/payroll/draft"
+        return normalized
+
+    if action_type == "fine_unmatched":
+        normalized["route"] = "/fines"
+        return normalized
+
+    if not route:
+        normalized["route"] = "/actions"
+
+    return normalized
+
 @app.get("/action-items")
 def list_action_items(
     user=Depends(get_current_user)
@@ -6087,6 +6350,9 @@ def list_action_items(
             .execute()
 
         items = res.data or []
+
+        # Normalize routes/arguments so UI resolve buttons always deep-link correctly.
+        items = [_normalize_action_item_navigation(i) for i in items]
 
         # Enrich with linked journal data if reference_id exists
         for item in items:

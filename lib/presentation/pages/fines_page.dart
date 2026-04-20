@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
@@ -532,9 +532,9 @@ class _FinesPageState extends State<FinesPage> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
-                          color: AppTheme.primaryColor.withOpacity(0.1),
+                          color: AppTheme.primaryColor.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: AppTheme.primaryColor.withOpacity(0.3)),
+                          border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.3)),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -816,7 +816,7 @@ class _FinesPageState extends State<FinesPage> {
                                                 Color?
                                               >((Set<WidgetState> states) {
                                                 if (fine.id == _flashingFineId) {
-                                                  return Colors.red.withOpacity(
+                                                  return Colors.red.withValues(alpha: 
                                                     0.15,
                                                   ); // Highlight color
                                                 }
@@ -826,7 +826,7 @@ class _FinesPageState extends State<FinesPage> {
                                                   return Theme.of(context)
                                                       .colorScheme
                                                       .primary
-                                                      .withOpacity(0.08);
+                                                      .withValues(alpha: 0.08);
                                                 }
                                                 return null;
                                               }),
@@ -962,7 +962,7 @@ class _FinesPageState extends State<FinesPage> {
                                     borderRadius: BorderRadius.circular(12),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: Colors.black.withOpacity(
+                                        color: Colors.black.withValues(alpha: 
                                           0.3,
                                         ),
                                         blurRadius: 20,
@@ -1399,3 +1399,4 @@ class _FinesPageState extends State<FinesPage> {
     );
   }
 }
+

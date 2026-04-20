@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../logic/financial/expense_bloc.dart';
@@ -9,7 +9,7 @@ import '../../utils/user_friendly_error.dart';
 import '../../data/models/rider_model.dart';
 import '../../data/models/expense_category_model.dart';
 import '../../services/api_service.dart';
-// Post New Journal dialog removed — Add Expense dialog deleted
+// Post New Journal dialog removed â€” Add Expense dialog deleted
 
 class ExpensesPage extends StatefulWidget {
   final bool isAccountant;
@@ -362,7 +362,7 @@ class _ExpensesPageState extends State<ExpensesPage> {
                   vertical: 6,
                 ),
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryColor.withOpacity(0.1),
+                  color: AppTheme.primaryColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Row(
@@ -437,7 +437,7 @@ class _ExpensesPageState extends State<ExpensesPage> {
                         ),
                         child: ExpansionTile(
                           leading: CircleAvatar(
-                            backgroundColor: AppTheme.primaryColor.withOpacity(
+                            backgroundColor: AppTheme.primaryColor.withValues(alpha: 
                               0.1,
                             ),
                             child: Icon(
@@ -464,7 +464,7 @@ class _ExpensesPageState extends State<ExpensesPage> {
                             ],
                           ),
                           subtitle: Text(
-                            "${(expense.description?.trim().isNotEmpty ?? false) ? expense.description!.trim() : expense.expenseType} • ${expense.expenseDate}",
+                            "${(expense.description?.trim().isNotEmpty ?? false) ? expense.description!.trim() : expense.expenseType} â€¢ ${expense.expenseDate}",
                             style: GoogleFonts.poppins(
                               fontSize: 12,
                               color: Colors.grey.shade600,
@@ -478,7 +478,7 @@ class _ExpensesPageState extends State<ExpensesPage> {
                             decoration: BoxDecoration(
                               color: _getStatusColor(
                                 expense.status,
-                              ).withOpacity(0.1),
+                              ).withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
@@ -993,3 +993,4 @@ class _AddExpenseFormState extends State<_AddExpenseForm> {
     );
   }
 }
+

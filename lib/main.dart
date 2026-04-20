@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:io';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -54,13 +56,49 @@ class MyHttpOverrides extends HttpOverrides {
 }
 
 Future<void> main() async {
+  await runZonedGuarded(() async {
+    await _bootstrapApp();
+  }, (error, stackTrace) {
+    debugPrint('Uncaught zone error: $error');
+    debugPrintStack(stackTrace: stackTrace);
+  });
+}
+
+Future<void> _bootstrapApp() async {
   HttpOverrides.global = MyHttpOverrides();
   WidgetsFlutterBinding.ensureInitialized();
+
+  FlutterError.onError = (FlutterErrorDetails details) {
+    FlutterError.presentError(details);
+    debugPrint('Flutter framework error: ${details.exception}');
+  };
+
+  ui.PlatformDispatcher.instance.onError = (error, stack) {
+    debugPrint('PlatformDispatcher uncaught error: $error');
+    debugPrintStack(stackTrace: stack);
+    return true;
+  };
+
+  final isDesktop = Platform.isWindows || Platform.isLinux || Platform.isMacOS;
 
   await Supabase.initialize(
     url: SupabaseConfig.url,
     anonKey: SupabaseConfig.anonKey,
+    authOptions: FlutterAuthClientOptions(
+      autoRefreshToken: !isDesktop,
+    ),
   );
+
+  // Enforce manual login on desktop runs and clear any stale persisted session.
+  if (isDesktop) {
+    try {
+      if (Supabase.instance.client.auth.currentSession != null) {
+        await Supabase.instance.client.auth.signOut(scope: SignOutScope.local);
+      }
+    } catch (_) {
+      // Ignore startup sign-out failures; app will continue to login screen.
+    }
+  }
 
   final authRepository = AuthRepository();
   
@@ -189,11 +227,17 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp.router(
-      title: 'Rider Payroll ERP',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-      routerConfig: appRouter.router,
+    return Listener(
+      behavior: HitTestBehavior.translucent,
+      onPointerDown: (_) {
+        context.read<AuthBloc>().add(UserActivityDetected());
+      },
+      child: MaterialApp.router(
+        title: 'Rider Payroll ERP',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.lightTheme,
+        routerConfig: appRouter.router,
+      ),
     );
   }
 }

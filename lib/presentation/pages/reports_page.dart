@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:file_picker/file_picker.dart';
@@ -215,7 +215,7 @@ class _ReportsPageState extends State<ReportsPage> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  "$monthStr • Total Cash Flow",
+                  "$monthStr â€¢ Total Cash Flow",
                   style: GoogleFonts.poppins(fontSize: 13, color: const Color(0xFF64748B)),
                 ),
                 const Icon(Icons.arrow_drop_down, color: Color(0xFF64748B)),
@@ -265,7 +265,7 @@ class _ReportsPageState extends State<ReportsPage> {
                     child: Row(
                       children: [
                         Text(
-                          "$monthStr • Total Cash Flow",
+                          "$monthStr â€¢ Total Cash Flow",
                           style: GoogleFonts.poppins(
                             fontSize: 14,
                             color: const Color(0xFF64748B),
@@ -686,7 +686,7 @@ class _ReportsPageState extends State<ReportsPage> {
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.02),
+                color: Colors.black.withValues(alpha: 0.02),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
